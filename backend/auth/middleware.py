@@ -13,6 +13,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
             user_id = str(uuid.uuid4())
             new_user = True
             
+        # Attach to request state
+        request.state.user_id = user_id
+            
         # Proceed
         response = await call_next(request)
         
