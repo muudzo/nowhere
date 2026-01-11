@@ -68,6 +68,22 @@ export default function HomeScreen({ onCreate }: Props) {
         )
     }
 
+    if (!loading && nearby.length === 0) {
+        return (
+            <View style={styles.container}>
+                <View style={styles.headerRow}>
+                    <Text style={styles.header}>Nowhere</Text>
+                </View>
+                <View style={styles.center}>
+                    <Text style={[styles.message, { fontSize: 20, textAlign: 'center' }]}>
+                        {message || "It's quiet here."}
+                    </Text>
+                    <Button title="Start something" onPress={onCreate} />
+                </View>
+            </View>
+        )
+    }
+
     return (
         <View style={styles.container}>
             <View style={styles.headerRow}>
