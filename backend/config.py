@@ -1,7 +1,7 @@
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    app_nam: str = "Nowhere"
+    app_name: str = "Nowhere"
     debug: bool = False
     
     class Config:
