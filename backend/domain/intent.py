@@ -11,6 +11,17 @@ class Intent(BaseModel):
     longitude: float = Field(ge=-180, le=180)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    @field_validator('latitude', 'longitude', mode='before')
+    @classmethod
+    def round_coordinates(cls, v: float) -> float:
+        # Round incoming for storage if we wanted, but let's stick to egress rounding primarily.
+        # However, to be "safe" we can also round what we store.
+        # But wait, if we round storage, we lose precision for the "nearby" calculations?
+        # "Geo: coarse location only".
+        # If we round to 3 decimal places (~100m), it's still fine for finding "nearby" things.
+        # So let's round IT ALL.
+        return round(v, 3)
+
     class Config:
         frozen = True
 
