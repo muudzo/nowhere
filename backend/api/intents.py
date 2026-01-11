@@ -41,3 +41,16 @@ async def find_nearby_intents(lat: float, lon: float, radius: float = 1.0, limit
         response.message = "It's quiet here. Start something?"
         
     return response
+
+from .join_schemas import JoinRequest
+from ..storage.join_repo import JoinRepository
+
+@router.post("/{intent_id}/join", status_code=200)
+async def join_intent(intent_id: UUID, request: JoinRequest):
+    repo = JoinRepository()
+    try:
+        joined = await repo.save_join(intent_id, request.user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    
+    return {"joined": joined, "intent_id": intent_id}
