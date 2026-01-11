@@ -3,11 +3,12 @@ import logging
 from fastapi import FastAPI, Request
 from .config import settings
 from .logging_config import configure_logging
+from .storage.redis import lifespan
 
 configure_logging()
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title=settings.app_name, version="0.1.0")
+app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next):
