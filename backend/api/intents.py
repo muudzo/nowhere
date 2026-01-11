@@ -11,9 +11,18 @@ class CreateIntentRequest(BaseModel):
     latitude: float
     longitude: float
 
-@router.post("/", response_model=Intent, status_code=201)
+from .limiter import rate_limit
+
+@router.post("/", response_model=Intent, status_code=201, dependencies=[Depends(rate_limit)])
 async def create_intent(request: CreateIntentRequest):
     repo = IntentRepository()
+    # ... (rest of function)
+
+# ...
+
+@router.post("/{intent_id}/messages", response_model=Message, dependencies=[Depends(rate_limit)])
+async def post_message(intent_id: UUID, request: CreateMessageRequest, user_id: UUID = Depends(get_current_user_id)):
+    # ...
     # Create intent domain object
     # Note: Validation happens in Intent init
     try:
