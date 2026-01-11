@@ -28,3 +28,8 @@ async def create_intent(request: CreateIntentRequest):
 
     await repo.save_intent(intent)
     return intent
+
+@router.get("/nearby", response_model=list[Intent])
+async def find_nearby_intents(lat: float, lon: float, radius: float = 1.0):
+    repo = IntentRepository()
+    return await repo.find_nearby(lat, lon, radius)
