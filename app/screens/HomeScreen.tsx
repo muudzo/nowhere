@@ -88,7 +88,15 @@ export default function HomeScreen({ onCreate }: Props) {
                             <Text style={styles.title}>{item.title}</Text>
                             <Text style={styles.meta}>{item.join_count} joined</Text>
                         </View>
-                        <Button title="Join" onPress={() => handleJoin(item.id)} />
+                        <View style={styles.actions}>
+                            <Button title="Join" onPress={() => handleJoin(item.id)} />
+                            {/* Show Enter if joined logic? For MVP, always show Enter, let it fail 403 or succeed? 
+                                 Or just a generic "Open" button?
+                                 "Temporary Chat Screen".
+                                 I'll just add the button.
+                              */}
+                            <Button title="Chat" color="#666" onPress={() => onChat(item.id)} />
+                        </View>
                     </View>
                 )}
             />
@@ -137,6 +145,11 @@ const styles = StyleSheet.create({
     },
     info: {
         flex: 1
+    },
+    actions: {
+        flexDirection: 'column', // Stack buttons? Or row? Row better.
+        flexDirection: 'row',
+        gap: 8,
     },
     title: {
         fontSize: 18,
