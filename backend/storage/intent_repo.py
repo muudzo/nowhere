@@ -72,8 +72,11 @@ class IntentRepository:
 
         for i, json_str in enumerate(json_list):
             if json_str:
-                valid_intents.append(Intent.model_validate_json(json_str))
-                valid_indices.append(i)
+                intent = Intent.model_validate_json(json_str)
+                # Filter flagged (threshold 3?)
+                if intent.flags < 3:
+                    valid_intents.append(intent)
+                    valid_indices.append(i)
             else:
                 expired_members.append(member_ids[i])
 
@@ -96,3 +99,20 @@ class IntentRepository:
             logger.info(f"Cleaned up {len(expired_members)} expired intents from geo index")
         
         return valid_intents
+
+    async def flag_intent(self, intent_id: UUID) -> int:
+        key = f"intent:{intent_id}"
+        data = await self.redis.get(key)
+        if not data:
+            return 0
+            
+        intent = Intent.model_validate_json(data)
+        intent = intent.model_copy(update={"flags": intent.flags + 1})
+        
+        # Save back. We should use a lua script for atomicity but MVP.
+        # Preserve TTL?
+        ttl = await self.redis.ttl(key)
+        if ttl > 0:
+            await self.redis.set(key, intent.model_dump_json(), ex=ttl)
+            
+        return intent.flags

@@ -107,3 +107,9 @@ async def post_message(intent_id: UUID, request: CreateMessageRequest, user_id: 
         raise HTTPException(status_code=404, detail=str(e))
         
     return message
+
+@router.post("/{intent_id}/flag", status_code=200)
+async def flag_intent(intent_id: UUID):
+    repo = IntentRepository()
+    new_flags = await repo.flag_intent(intent_id)
+    return {"id": intent_id, "flags": new_flags}

@@ -11,6 +11,7 @@ class Intent(BaseModel):
     longitude: float = Field(ge=-180, le=180)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     join_count: int = 0
+    flags: int = 0
 
     @field_validator('latitude', 'longitude', mode='before')
     @classmethod
