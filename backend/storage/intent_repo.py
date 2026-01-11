@@ -55,8 +55,18 @@ class IntentRepository:
         
         # Filter out None (expired) and parse
         intents = []
-        for json_str in json_list:
+        expired_members = []
+        
+        for i, json_str in enumerate(json_list):
             if json_str:
                 intents.append(Intent.model_validate_json(json_str))
+            else:
+                # Track expired member for cleanup
+                expired_members.append(member_ids[i])
+        
+        if expired_members:
+            # Clean up zombies from the geo index
+            await self.redis.zrem("intents:geo", *expired_members)
+            logger.info(f"Cleaned up {len(expired_members)} expired intents from geo index")
         
         return intents
