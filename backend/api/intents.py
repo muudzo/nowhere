@@ -29,7 +29,15 @@ async def create_intent(request: CreateIntentRequest):
     await repo.save_intent(intent)
     return intent
 
-@router.get("/nearby", response_model=list[Intent])
+from .schemas import NearbyResponse
+
+@router.get("/nearby", response_model=NearbyResponse)
 async def find_nearby_intents(lat: float, lon: float, radius: float = 1.0, limit: int = 50):
     repo = IntentRepository()
-    return await repo.find_nearby(lat, lon, radius, limit)
+    intents = await repo.find_nearby(lat, lon, radius, limit)
+    
+    response = NearbyResponse(intents=intents, count=len(intents))
+    if not intents:
+        response.message = "It's quiet here. Start something?"
+        
+    return response
