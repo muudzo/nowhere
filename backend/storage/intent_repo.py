@@ -29,3 +29,34 @@ class IntentRepository:
         if not data:
             return None
         return Intent.model_validate_json(data)
+
+    async def find_nearby(self, lat: float, lon: float, radius_km: float = 1.0) -> list[Intent]:
+        # radius in km
+        # GEOSEARCH key FROMLLONLAT lon lat BYRADIUS radius km ASC
+        # Returns list of members
+        member_ids = await self.redis.geosearch(
+            "intents:geo",
+            longitude=lon,
+            latitude=lat,
+            radius=radius_km,
+            unit="km"
+        )
+        
+        if not member_ids:
+            return []
+
+        # Fetch all intents
+        # member_ids in redis-py might be bytes or strings depending on decode_responses.
+        # We configured decode_responses=True in RedisClient.
+        
+        # MGET to get all intent:id
+        keys = [f"intent:{mid}" for mid in member_ids]
+        json_list = await self.redis.mget(keys)
+        
+        # Filter out None (expired) and parse
+        intents = []
+        for json_str in json_list:
+            if json_str:
+                intents.append(Intent.model_validate_json(json_str))
+        
+        return intents
