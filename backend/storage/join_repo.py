@@ -44,3 +44,7 @@ class JoinRepository:
     async def get_join_count(self, intent_id: UUID) -> int:
         join_key = f"intent:{intent_id}:joins"
         return await self.redis.scard(join_key)
+
+    async def is_member(self, intent_id: UUID, user_id: UUID) -> bool:
+        join_key = f"intent:{intent_id}:joins"
+        return await self.redis.sismember(join_key, str(user_id))

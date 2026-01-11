@@ -44,12 +44,13 @@ async def find_nearby_intents(lat: float, lon: float, radius: float = 1.0, limit
 
 from .join_schemas import JoinRequest
 from ..storage.join_repo import JoinRepository
+from .deps import get_current_user_id
 
 @router.post("/{intent_id}/join", status_code=200)
-async def join_intent(intent_id: UUID, request: JoinRequest):
+async def join_intent(intent_id: UUID, user_id: UUID = Depends(get_current_user_id)):
     repo = JoinRepository()
     try:
-        joined = await repo.save_join(intent_id, request.user_id)
+        joined = await repo.save_join(intent_id, user_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     
@@ -68,13 +69,24 @@ async def get_messages(intent_id: UUID, limit: int = 50):
     return await repo.get_messages(intent_id, limit)
 
 @router.post("/{intent_id}/messages", response_model=Message)
-async def post_message(intent_id: UUID, request: CreateMessageRequest):
+async def post_message(intent_id: UUID, request: CreateMessageRequest, user_id: UUID = Depends(get_current_user_id)):
+    # Check if joined
+    join_repo = JoinRepository()
+    
+    # We don't have a direct "is_member" check, but save_join works essentially.
+    # However we want to check WITHOUT SIDE EFFECTS if possible?
+    # Or just require join.
+    # MVP: Check SCARD or SISMEMBER. We need SISMEMBER.
+    # Let's add is_member to JoinRepo or just assume client joined.
+    # But "enforce join permissions".
+    if not await join_repo.is_member(intent_id, user_id):
+         raise HTTPException(status_code=403, detail="Must join intent to message")
+
     repo = MessageRepository()
-    # Create domain obj, handling validation
     try:
         message = Message(
             intent_id=intent_id,
-            user_id=request.user_id,
+            user_id=user_id,
             content=request.content
         )
     except ValueError as e:
