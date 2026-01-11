@@ -5,12 +5,14 @@ from .config import settings
 from .logging_config import configure_logging
 from .storage.redis import lifespan
 from .api.intents import router as intents_router
+from .auth.middleware import AuthMiddleware
 
 configure_logging()
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 
+app.add_middleware(AuthMiddleware)
 app.include_router(intents_router)
 
 @app.middleware("http")
