@@ -28,7 +28,18 @@ class IntentRepository:
         data = await self.redis.get(key)
         if not data:
             return None
-        return Intent.model_validate_json(data)
+        intent = Intent.model_validate_json(data)
+        
+        # Populate join count
+        join_key = f"intent:{intent_id}:joins"
+        count = await self.redis.scard(join_key)
+        # We need to manually update the field since the model is frozen and it was loaded from JSON without it (or with default 0).
+        # Actually Pydantic models with frozen=True invoke copy to update.
+        # But wait, create_intent saves with default 0.
+        # So we just need to overwrite it with the fresh count from Redis.
+        # Using model_copy with update.
+        intent = intent.model_copy(update={"join_count": count})
+        return intent
 
     async def find_nearby(self, lat: float, lon: float, radius_km: float = 1.0, limit: int = 50) -> list[Intent]:
         # radius in km
@@ -54,20 +65,34 @@ class IntentRepository:
         keys = [f"intent:{mid}" for mid in member_ids]
         json_list = await self.redis.mget(keys)
         
-        # Filter out None (expired) and parse
-        intents = []
+        # Filter out None and gather valid intents
+        valid_intents = []
         expired_members = []
-        
+        valid_indices = []
+
         for i, json_str in enumerate(json_list):
             if json_str:
-                intents.append(Intent.model_validate_json(json_str))
+                valid_intents.append(Intent.model_validate_json(json_str))
+                valid_indices.append(i)
             else:
-                # Track expired member for cleanup
                 expired_members.append(member_ids[i])
-        
+
+        if valid_intents:
+            # Pipeline request for all join counts
+            pipeline = self.redis.pipeline()
+            for intent in valid_intents:
+                pipeline.scard(f"intent:{intent.id}:joins")
+            counts = await pipeline.execute()
+            
+            # Update intents with counts
+            valid_intents = [
+                intent.model_copy(update={"join_count": c}) 
+                for intent, c in zip(valid_intents, counts)
+            ]
+
         if expired_members:
             # Clean up zombies from the geo index
             await self.redis.zrem("intents:geo", *expired_members)
             logger.info(f"Cleaned up {len(expired_members)} expired intents from geo index")
         
-        return intents
+        return valid_intents
