@@ -57,3 +57,32 @@ async def join_intent(intent_id: UUID, request: JoinRequest):
         return {"joined": False, "intent_id": intent_id, "message": "Already joined"}
         
     return {"joined": True, "intent_id": intent_id}
+
+from .message_schemas import CreateMessageRequest
+from ..domain.message import Message
+from ..storage.message_repo import MessageRepository
+
+@router.get("/{intent_id}/messages", response_model=list[Message])
+async def get_messages(intent_id: UUID, limit: int = 50):
+    repo = MessageRepository()
+    return await repo.get_messages(intent_id, limit)
+
+@router.post("/{intent_id}/messages", response_model=Message)
+async def post_message(intent_id: UUID, request: CreateMessageRequest):
+    repo = MessageRepository()
+    # Create domain obj, handling validation
+    try:
+        message = Message(
+            intent_id=intent_id,
+            user_id=request.user_id,
+            content=request.content
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+        
+    try:
+        await repo.save_message(message)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+        
+    return message
