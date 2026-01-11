@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, Alert, Button } from 'react-native';
 import { getCurrentLocation, CoarseLocation } from '../utils/location';
 import { api } from '../utils/api';
 
@@ -7,12 +7,16 @@ interface Intent {
     id: string;
     title: string;
     emoji: string;
-    latitude: float;
-    longitude: float;
+    latitude: number;
+    longitude: number;
     join_count: number;
 }
 
-export default function HomeScreen() {
+interface Props {
+    onCreate: () => void;
+}
+
+export default function HomeScreen({ onCreate }: Props) {
     const [nearby, setNearby] = useState<Intent[]>([]);
     const [loading, setLoading] = useState(true);
     const [location, setLocation] = useState<CoarseLocation | null>(null);
@@ -54,7 +58,10 @@ export default function HomeScreen() {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.header}>Nowhere</Text>
+            <View style={styles.headerRow}>
+                <Text style={styles.header}>Nowhere</Text>
+                <Button title="+" onPress={onCreate} />
+            </View>
             {message && <Text style={styles.message}>{message}</Text>}
 
             <FlatList
@@ -91,6 +98,11 @@ const styles = StyleSheet.create({
     header: {
         fontSize: 32,
         fontWeight: 'bold',
+    },
+    headerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: 20
     },
     message: {
