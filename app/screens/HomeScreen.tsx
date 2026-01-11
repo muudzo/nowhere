@@ -48,6 +48,18 @@ export default function HomeScreen({ onCreate }: Props) {
         fetchData();
     }, []);
 
+    const handleJoin = async (id: string) => {
+        try {
+            await api.post(`/intents/${id}/join`);
+            // Refresh logic - optimistic or fetch? Fetch for MVP is safer to get updated count.
+            fetchData();
+            Alert.alert("Joined!", "You are in.");
+        } catch (e) {
+            console.error(e);
+            Alert.alert("Error", "Could not join intent");
+        }
+    };
+
     if (loading && !nearby.length) {
         return (
             <View style={styles.center}>
@@ -76,6 +88,7 @@ export default function HomeScreen({ onCreate }: Props) {
                             <Text style={styles.title}>{item.title}</Text>
                             <Text style={styles.meta}>{item.join_count} joined</Text>
                         </View>
+                        <Button title="Join" onPress={() => handleJoin(item.id)} />
                     </View>
                 )}
             />
