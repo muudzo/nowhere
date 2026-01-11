@@ -12,7 +12,18 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app.add_middleware(AuthMiddleware)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8081", "http://localhost:8082", "http://localhost:8083", "http://192.168.0.12:8081"], # Add common Expo ports
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(intents_router)
 
 @app.middleware("http")
