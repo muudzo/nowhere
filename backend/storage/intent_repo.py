@@ -16,6 +16,11 @@ class IntentRepository:
         # Convert pydantic model to json
         data = intent.model_dump_json()
         await self.redis.set(key, data, ex=INTENT_TTL_SECONDS)
+        
+        # Add to geo index
+        # GEOADD key longitude latitude member
+        await self.redis.geoadd("intents:geo", (intent.longitude, intent.latitude, str(intent.id)))
+        
         logger.info(f"Saved intent {intent.id} with TTL {INTENT_TTL_SECONDS}s")
 
     async def get_intent(self, intent_id: str) -> Intent | None:
