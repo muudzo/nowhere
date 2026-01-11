@@ -30,7 +30,7 @@ class IntentRepository:
             return None
         return Intent.model_validate_json(data)
 
-    async def find_nearby(self, lat: float, lon: float, radius_km: float = 1.0) -> list[Intent]:
+    async def find_nearby(self, lat: float, lon: float, radius_km: float = 1.0, limit: int = 50) -> list[Intent]:
         # radius in km
         # GEOSEARCH key FROMLLONLAT lon lat BYRADIUS radius km ASC
         # Returns list of members
@@ -39,7 +39,8 @@ class IntentRepository:
             longitude=lon,
             latitude=lat,
             radius=radius_km,
-            unit="km"
+            unit="km",
+            count=limit
         )
         
         if not member_ids:
