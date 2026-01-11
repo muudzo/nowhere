@@ -14,9 +14,10 @@ interface Intent {
 
 interface Props {
     onCreate: () => void;
+    onChat: (id: string) => void;
 }
 
-export default function HomeScreen({ onCreate }: Props) {
+export default function HomeScreen({ onCreate, onChat }: Props) {
     const [nearby, setNearby] = useState<Intent[]>([]);
     const [loading, setLoading] = useState(true);
     const [location, setLocation] = useState<CoarseLocation | null>(null);
@@ -163,7 +164,6 @@ const styles = StyleSheet.create({
         flex: 1
     },
     actions: {
-        flexDirection: 'column', // Stack buttons? Or row? Row better.
         flexDirection: 'row',
         gap: 8,
     },
