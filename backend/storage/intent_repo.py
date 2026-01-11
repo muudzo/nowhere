@@ -17,3 +17,10 @@ class IntentRepository:
         data = intent.model_dump_json()
         await self.redis.set(key, data, ex=INTENT_TTL_SECONDS)
         logger.info(f"Saved intent {intent.id} with TTL {INTENT_TTL_SECONDS}s")
+
+    async def get_intent(self, intent_id: str) -> Intent | None:
+        key = f"intent:{intent_id}"
+        data = await self.redis.get(key)
+        if not data:
+            return None
+        return Intent.model_validate_json(data)
