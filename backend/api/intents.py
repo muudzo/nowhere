@@ -53,4 +53,7 @@ async def join_intent(intent_id: UUID, request: JoinRequest):
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     
-    return {"joined": joined, "intent_id": intent_id}
+    if not joined:
+        return {"joined": False, "intent_id": intent_id, "message": "Already joined"}
+        
+    return {"joined": True, "intent_id": intent_id}
