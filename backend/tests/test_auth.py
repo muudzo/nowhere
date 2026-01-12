@@ -1,13 +1,23 @@
 import pytest
+import uuid
 from httpx import AsyncClient
 from backend.main import app
-from backend.storage.redis import RedisClient
+from backend.storage.redis import RedisClient, lifespan
 
 @pytest.fixture(autouse=True)
-async def clear_redis():
+async def manage_redis():
+    # Force connection start
+    await RedisClient.connect()
+    
+    # Flush
     r = RedisClient.get_client()
     if r:
         await r.flushdb()
+        
+    yield
+    
+    # Cleanup
+    await RedisClient.disconnect()
 
 @pytest.mark.asyncio
 async def test_auth_flow():
@@ -21,9 +31,8 @@ async def test_auth_flow():
         # 2. Subsequent request, with cookie
         response = await ac.get("/health", cookies={"user_id": user_id})
         assert response.status_code == 200
-        # Cookie might not be re-set if present, or set again. 
-        # Logic says "if new_user -> set cookie". So it won't be in Set-Cookie.
-        assert "user_id" not in response.headers.get("set-cookie", "").lower()
+        # Cookie IS re-set now to refresh expiry
+        assert "user_id" in response.headers.get("set-cookie", "").lower()
 
 @pytest.mark.asyncio
 async def test_header_identity_precedence():
@@ -32,7 +41,8 @@ async def test_header_identity_precedence():
     
     async with AsyncClient(app=app, base_url="http://test") as ac:
         # First request with header
-        response = await ac.post("/intents", json={
+        # Note: Use trailing slash for POST to avoid 307 redirect
+        response = await ac.post("/intents/", json={
             "title": "Header Test",
             "emoji": "🧪",
             "latitude": 40.7128,
