@@ -9,6 +9,7 @@ from .keys import RedisKeys
 from ..domain.intent import Intent
 import json
 import logging
+from ..domain.ranking import calculate_score, is_visible
 
 logger = logging.getLogger(__name__)
 
@@ -106,12 +107,7 @@ class IntentRepository:
         # Execute pipeline to get counts
         counts = await pipeline.execute()
         
-        # Scoring logic
-        # Weights
-        W_DIST = 1.0
-        W_FRESH = 2.0
-        W_POP = 0.5
-        
+
         scored_intents = []
         now = datetime.now(timezone.utc)
         
@@ -119,36 +115,13 @@ class IntentRepository:
             # Update count
             intent = intent.model_copy(update={"join_count": count})
             
-            # 1. Distance Score (0 to 1, 1 is closest)
+            # Check Visibility
             dist = distances.get(str(intent.id), radius_km)
-            
-            # Commit 7: Visibility Thresholds
-            # If join_count == 0 (unverified) and not system, max radius is 0.2km (200m).
-            if intent.join_count == 0 and not intent.is_system and dist > 0.2:
+            if not is_visible(intent, dist):
                 continue
 
-            # Normalize: 1 - (dist / radius)
-            # If dist > radius (unlikely with geosearch), clamp to 0
-            dist_score = max(0, 1.0 - (dist / radius_km))
-            
-            # 2. Freshness Score (Decay over 24h)
-            # 0h old -> 1.0
-            # 24h old -> 0.0
-            created_at = intent.created_at
-            if created_at.tzinfo is None:
-                created_at = created_at.replace(tzinfo=timezone.utc)
-            
-            age_seconds = (now - created_at).total_seconds()
-            freshness_score = max(0, 1.0 - (age_seconds / 86400.0))
-            
-            # 3. Popularity Score (Logarithmic)
-            # 0 joins -> 0
-            # 10 joins -> log(11) ~ 2.4
-            # Cap impact?
-            from math import log1p
-            pop_score = log1p(count) 
-            
-            total_score = (W_DIST * dist_score) + (W_FRESH * freshness_score) + (W_POP * pop_score)
+            # Calculate Score
+            total_score = calculate_score(intent, dist, radius_km, now)
             
             scored_intents.append((total_score, intent))
             
