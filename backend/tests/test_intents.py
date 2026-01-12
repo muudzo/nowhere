@@ -1,7 +1,11 @@
 import pytest
 from httpx import AsyncClient
-from ..main import app
-from ..storage.redis import RedisClient
+from backend.main import app
+from backend.storage.redis import RedisClient, get_redis_client
+from backend.storage.keys import RedisKeys
+from backend.storage.intent_repo import IntentRepository
+from backend.storage.join_repo import JoinRepository
+from backend.storage.message_repo import MessageRepository
 import uuid
 
 @pytest.fixture
@@ -9,15 +13,22 @@ async def client():
     async with AsyncClient(app=app, base_url="http://test") as c:
         yield c
 
+from unittest.mock import patch
+
 @pytest.fixture(autouse=True)
-async def clear_redis():
-    # Setup
-    yield
-    # Teardown: simplistic flushdb might be dangerous if not isolated, 
-    # but for mvp "prefer simplicity" and assumption of dev env.
+async def manage_redis():
+    await RedisClient.connect()
     r = RedisClient.get_client()
     if r:
         await r.flushdb()
+    
+    # Override redis dependency to use the test-initialized client
+    app.dependency_overrides[get_redis_client] = lambda: r
+    
+    yield
+    
+    await RedisClient.disconnect()
+    app.dependency_overrides = {}
 
 @pytest.mark.asyncio
 async def test_create_and_find_nearby_intent():

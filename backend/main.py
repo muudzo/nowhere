@@ -5,6 +5,7 @@ from .config import settings
 from .logging_config import configure_logging
 from .storage.redis import lifespan
 from .api.intents import router as intents_router
+from .api.debug import router as debug_router
 from .auth.middleware import AuthMiddleware
 
 configure_logging()
@@ -25,6 +26,7 @@ app.add_middleware(
 )
 
 app.include_router(intents_router)
+app.include_router(debug_router, prefix="/debug", tags=["debug"])
 
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next):

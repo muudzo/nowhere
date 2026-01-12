@@ -10,6 +10,7 @@ class Intent(BaseModel):
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    is_system: bool = False
     join_count: int = 0
     flags: int = 0
 

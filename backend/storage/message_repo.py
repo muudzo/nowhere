@@ -1,18 +1,21 @@
 import logging
 from uuid import UUID
-from .redis import RedisClient
+from backend.storage.redis import RedisClient, get_redis_client
+from .keys import RedisKeys
 from ..domain.message import Message
-import json  # Need json serializer for datetime handling? model_dump_json handles it.
+import json
+from fastapi import Depends
+from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
 
 class MessageRepository:
-    def __init__(self):
-        self.redis = RedisClient.get_client()
+    def __init__(self, redis: Redis = Depends(get_redis_client)):
+        self.redis = redis
 
     async def save_message(self, message: Message) -> None:
-        intent_key = f"intent:{message.intent_id}"
-        messages_key = f"intent:{message.intent_id}:messages"
+        intent_key = RedisKeys.intent(message.intent_id)
+        messages_key = RedisKeys.intent_messages(message.intent_id)
         
         # Check intent existence/TTL
         ttl = await self.redis.ttl(intent_key)
@@ -35,7 +38,7 @@ class MessageRepository:
         logger.info(f"Saved message from {message.user_id} to intent {message.intent_id}")
 
     async def get_messages(self, intent_id: UUID, limit: int = 50) -> list[Message]:
-        messages_key = f"intent:{intent_id}:messages"
+        messages_key = RedisKeys.intent_messages(intent_id)
         # Get last N messages
         # lrange 0 -1 gets all. 
         # range: start, stop.

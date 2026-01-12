@@ -30,6 +30,10 @@ class RedisClient:
             await cls._client.close()
             cls._client = None
 
+# Dependency
+async def get_redis_client() -> Redis:
+    return RedisClient.get_client()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Determine Redis URL from settings or default

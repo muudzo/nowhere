@@ -1,12 +1,15 @@
 import logging
 from uuid import UUID
-from .redis import RedisClient
+from backend.storage.redis import RedisClient, get_redis_client
+from .keys import RedisKeys
+from fastapi import Depends
+from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
 
 class JoinRepository:
-    def __init__(self):
-        self.redis = RedisClient.get_client()
+    def __init__(self, redis: Redis = Depends(get_redis_client)):
+        self.redis = redis
 
     async def save_join(self, intent_id: UUID, user_id: UUID) -> bool:
         """
@@ -14,8 +17,8 @@ class JoinRepository:
         Returns True if added, False if already joined.
         Raises ValueError if intent does not exist.
         """
-        intent_key = f"intent:{intent_id}"
-        join_key = f"intent:{intent_id}:joins"
+        intent_key = RedisKeys.intent(intent_id)
+        join_key = RedisKeys.intent_joins(intent_id)
         
         # Check if intent exists and get its TTL
         ttl = await self.redis.ttl(intent_key)
@@ -42,9 +45,9 @@ class JoinRepository:
         return False
 
     async def get_join_count(self, intent_id: UUID) -> int:
-        join_key = f"intent:{intent_id}:joins"
+        join_key = RedisKeys.intent_joins(intent_id)
         return await self.redis.scard(join_key)
 
     async def is_member(self, intent_id: UUID, user_id: UUID) -> bool:
-        join_key = f"intent:{intent_id}:joins"
+        join_key = RedisKeys.intent_joins(intent_id)
         return await self.redis.sismember(join_key, str(user_id))

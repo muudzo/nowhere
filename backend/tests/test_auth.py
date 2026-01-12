@@ -4,20 +4,7 @@ from httpx import AsyncClient
 from backend.main import app
 from backend.storage.redis import RedisClient, lifespan
 
-@pytest.fixture(autouse=True)
-async def manage_redis():
-    # Force connection start
-    await RedisClient.connect()
-    
-    # Flush
-    r = RedisClient.get_client()
-    if r:
-        await r.flushdb()
-        
-    yield
-    
-    # Cleanup
-    await RedisClient.disconnect()
+from backend.api.limiter import rate_limit
 
 @pytest.mark.asyncio
 async def test_auth_flow():
