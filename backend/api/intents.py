@@ -1,7 +1,16 @@
+from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 from ..domain.intent import Intent
+from ..domain.message import Message
 from ..storage.intent_repo import IntentRepository
+from ..storage.join_repo import JoinRepository
+from ..storage.message_repo import MessageRepository
+from .deps import get_current_user_id
+from .limiter import rate_limit
+from .message_schemas import CreateMessageRequest
+from .join_schemas import JoinRequest
+from .schemas import NearbyResponse
 
 router = APIRouter(prefix="/intents", tags=["intents"])
 
@@ -11,7 +20,6 @@ class CreateIntentRequest(BaseModel):
     latitude: float
     longitude: float
 
-from .limiter import rate_limit
 
 @router.post("/", response_model=Intent, status_code=201, dependencies=[Depends(rate_limit)])
 async def create_intent(request: CreateIntentRequest):

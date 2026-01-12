@@ -5,29 +5,36 @@ import uuid
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Check for user_id in cookies
-        user_id = request.cookies.get("user_id")
-        
-        # If not present, generate one (but we don't set it on request.state yet - that's Commit 28)
-        new_user = False
+        # Priority 1: Header (Device-anchored identity)
+        user_id = request.headers.get("X-Nowhere-Identity")
+
+        # Priority 2: Cookie (Browser/Legacy fallback)
         if not user_id:
+            user_id = request.cookies.get("user_id")
+
+        # Validation / Generation
+        try:
+            if user_id:
+                # Validate valid UUID
+                uuid_obj = uuid.UUID(user_id)
+                user_id = str(uuid_obj)
+            else:
+                raise ValueError("No ID")
+        except ValueError:
             user_id = str(uuid.uuid4())
-            new_user = True
-            
+
         # Attach to request state
         request.state.user_id = user_id
-            
-        # Proceed
+        
         response = await call_next(request)
         
-        # Set cookie if it was new
-        if new_user:
-            # 400 days expiry (approx forever)
-            response.set_cookie(
-                key="user_id", 
-                value=user_id, 
-                max_age=34560000, 
-                httponly=True,
-                samesite="lax"
-            )
-            
+        # Always refresh/set cookie for web context
+        response.set_cookie(
+            key="user_id",
+            value=user_id,
+            max_age=400 * 24 * 60 * 60, # 400 days
+            httponly=True,
+            samesite="lax"
+        )
+        
         return response

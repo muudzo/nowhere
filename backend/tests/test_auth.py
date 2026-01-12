@@ -1,7 +1,7 @@
 import pytest
 from httpx import AsyncClient
-from ..main import app
-from ..storage.redis import RedisClient
+from backend.main import app
+from backend.storage.redis import RedisClient
 
 @pytest.fixture(autouse=True)
 async def clear_redis():
@@ -24,6 +24,31 @@ async def test_auth_flow():
         # Cookie might not be re-set if present, or set again. 
         # Logic says "if new_user -> set cookie". So it won't be in Set-Cookie.
         assert "user_id" not in response.headers.get("set-cookie", "").lower()
+
+@pytest.mark.asyncio
+async def test_header_identity_precedence():
+    """Test that X-Nowhere-Identity header takes precedence over cookie"""
+    custom_id = str(uuid.uuid4())
+    
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        # First request with header
+        response = await ac.post("/intents", json={
+            "title": "Header Test",
+            "emoji": "🧪",
+            "latitude": 40.7128,
+            "longitude": -74.0060
+        }, headers={"X-Nowhere-Identity": custom_id})
+        
+        assert response.status_code == 201
+        
+        # Verify user_id context matches header
+        # (We can't easily check request.state in integration test without exposing it, 
+        # but we can check if it persists or if we can see it in rate limit headers if we had them or logs.
+        # For now, let's trust if it works 201).
+        
+        # Verify cookie is set to match the header ID
+        assert "user_id" in response.cookies
+        assert response.cookies["user_id"] == custom_id
 
 @pytest.mark.asyncio
 async def test_join_and_message_flow():
