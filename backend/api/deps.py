@@ -10,3 +10,11 @@ def get_current_user_id(request: Request) -> UUID:
         return UUID(user_id)
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid user ID")
+
+from fastapi import Depends
+from redis.asyncio import Redis
+from ..storage.redis import get_redis_client
+from ..spam import SpamDetector
+
+def get_spam_detector(redis: Redis = Depends(get_redis_client)) -> SpamDetector:
+    return SpamDetector(redis)

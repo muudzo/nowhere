@@ -24,8 +24,12 @@ async def create_intent(
     background_tasks: BackgroundTasks,
     repo: IntentRepository = Depends(),
     metrics: MetricsRepository = Depends(),
+    spam: SpamDetector = Depends(get_spam_detector),
     user_id: str = Depends(get_current_user_id)
 ):
+    # Spam Check
+    await spam.check(intent_request.title, str(user_id))
+
     # Create intent domain object
     try:
         intent = Intent(
@@ -76,8 +80,12 @@ async def post_message(
     user_id: UUID = Depends(get_current_user_id),
     join_repo: JoinRepository = Depends(),
     repo: MessageRepository = Depends(),
-    metrics: MetricsRepository = Depends()
+    metrics: MetricsRepository = Depends(),
+    spam: SpamDetector = Depends(get_spam_detector)
 ):
+    # Spam Check
+    await spam.check(request.content, str(user_id))
+
     # Check if joined
     if not await join_repo.is_member(intent_id, user_id):
          raise HTTPException(status_code=403, detail="Must join intent to message")

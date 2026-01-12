@@ -30,5 +30,9 @@ class RedisKeys:
         return f"area:{geohash}"
 
     @staticmethod
+    def spam_last_hash(user_id: str) -> str:
+        return f"spam:{user_id}:last_hash"
+
+    @staticmethod
     def expiry_queue() -> str:
         return "sys:expiry_queue"

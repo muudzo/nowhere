@@ -23,12 +23,16 @@ async def get_db():
     async with AsyncSessionLocal() as session:
         yield session
 
+import asyncio
+
 async def init_db():
     # For MVP, we can use create_all. For prod, use Alembic.
     # We will try to create tables if we can connect.
+    logger.info("Initializing Database...")
     try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database tables initialized (if connection successful).")
+        async with asyncio.timeout(3.0): # 3s timeout
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables initialized.")
     except Exception as e:
-        logger.warning(f"Failed to initialize DB (Postgres might be down): {e}")
+        logger.warning(f"Failed to initialize DB: {e}")
