@@ -20,3 +20,15 @@ class RedisKeys:
     @staticmethod
     def rate_limit(user_id: str, action: str) -> str:
         return f"identity:{user_id}:limits:{action}"
+
+    @staticmethod
+    def user_intents(user_id: str) -> str:
+        return f"user:{user_id}:intents"
+
+    @staticmethod
+    def area_hash(geohash: str) -> str:
+        return f"area:{geohash}"
+
+    @staticmethod
+    def expiry_queue() -> str:
+        return "sys:expiry_queue"

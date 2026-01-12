@@ -5,10 +5,14 @@ from backend.storage.redis import RedisClient, get_redis_client
 from .keys import RedisKeys
 from fastapi import Depends
 from redis.asyncio import Redis
+from .keys import RedisKeys
+from ..domain.intent import Intent
+import json
+import logging
 
 logger = logging.getLogger(__name__)
 
-INTENT_TTL_SECONDS = 86400  # 24 hours
+INTENT_TTL_SECONDS = 24 * 60 * 60 # 24h
 
 class IntentRepository:
     def __init__(self, redis: Redis = Depends(get_redis_client)):
@@ -23,6 +27,14 @@ class IntentRepository:
         # Add to geo index
         # GEOADD key longitude latitude member
         await self.redis.geoadd(RedisKeys.intent_geo(), (intent.longitude, intent.latitude, str(intent.id)))
+        
+        # Add to Expiration Queue (Sorted Set by timestamp)
+        expire_at = datetime.now(timezone.utc) + timedelta(seconds=INTENT_TTL_SECONDS)
+        await self.redis.zadd(RedisKeys.expiry_queue(), {str(intent.id): expire_at.timestamp()})
+        
+        # Add to User's Intent List
+        if intent.user_id:
+            await self.redis.sadd(RedisKeys.user_intents(intent.user_id), str(intent.id))
         
         logger.info(f"Saved intent {intent.id} with TTL {INTENT_TTL_SECONDS}s")
 
@@ -55,7 +67,8 @@ class IntentRepository:
             latitude=lat,
             radius=radius_km,
             unit="km",
-            count=fetch_count,
+            sort="ASC",
+            count=100, # ample sample for density
             withdist=True
         )
         
@@ -165,4 +178,22 @@ class IntentRepository:
             await self.redis.set(key, intent.model_dump_json(), ex=ttl)
             
         return intent.flags
+
+    async def count_nearby(self, lat: float, lon: float, radius_km: float = 1.0) -> int:
+        try:
+           # GEOSEARCH key FROMLONLAT lon lat BYRADIUS radius km ASC count 100
+           res = await self.redis.geosearch(
+               name=RedisKeys.intent_geo(),
+               longitude=lon,
+               latitude=lat,
+               radius=radius_km,
+               unit="km",
+               sort="ASC",
+               count=100
+           )
+           logger.info(f"Count nearby lat={lat} lon={lon} r={radius_km} -> {len(res)} items")
+           return len(res)
+        except Exception as e:
+            logger.error(f"Count nearby failed: {e}")
+            return 0
 

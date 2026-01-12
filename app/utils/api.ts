@@ -13,12 +13,24 @@ export const api = axios.create({
     withCredentials: true, // Persist cookies still, for backward compat/fallback
 });
 
+import { getAccessToken } from './identity';
+
+// ... (existing imports/setup)
+
 api.interceptors.request.use(async (config) => {
     try {
-        const identity = await getOrCreateIdentity();
-        config.headers['X-Nowhere-Identity'] = identity;
+        const token = await getAccessToken();
+        if (token) {
+            config.headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        // Also send legacy header just in case or for smooth migration?
+        // Let's remove it to force JWT usage if we trust handshake.
+        // Or keep it as "X-Nowhere-Identity" if getAccessToken fails? 
+        // Logic: getAccessToken handles handshake. If it fails, token is null.
+
     } catch (e) {
-        // Fallback to no header (cookie will work)
+        // Fallback
     }
     return config;
 });

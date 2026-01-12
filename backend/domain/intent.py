@@ -5,6 +5,7 @@ import re
 
 class Intent(BaseModel):
     id: UUID = Field(default_factory=uuid4)
+    user_id: str | None = None
     title: str = Field(min_length=1, max_length=50)
     emoji: str
     latitude: float = Field(ge=-90, le=90)
