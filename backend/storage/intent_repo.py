@@ -152,6 +152,71 @@ class IntentRepository:
             
         return intent.flags
 
+    async def get_clusters(self, lat: float, lon: float, radius_km: float = 10.0) -> list[dict]:
+        """
+        Aggregates intents into clusters based on a simple grid system.
+        """
+        # Fetch all items in valid radius (limit to 500 for sanity)
+        res = await self.redis.geosearch(
+               name=RedisKeys.intent_geo(),
+               longitude=lon,
+               latitude=lat,
+               radius=radius_km,
+               unit="km",
+               count=1000,
+               withcoord=True
+        )
+        if not res:
+            return []
+            
+        # Basic clustering: Round to decimal places
+        # 3 decimal places ~110m (Street level)
+        # 2 decimal places ~1.1km (Neighborhood)
+        # We can dynamically choose based on radius. 
+        # For radius=10km, precision 2 is good.
+        precision = 2 if radius_km > 5 else 3
+        
+        clusters = {}
+        
+        for member_hash, point in res: # redis-py returns [ [member, (lon, lat)], ... ]
+             # member_hash is the member string, point is (lon, lat) tuple
+             # Actually withcoord=True returns: [[member, dist, (lon,lat)]] if withdist=True?
+             # Docs say: return list of (member, distance, (longitude, latitude))
+             # We didn't ask for dist, so it's (member, (longitude, latitude))
+             r_lon, r_lat = point
+             
+             # Create grid key
+             grid_lat = round(r_lat, precision)
+             grid_lon = round(r_lon, precision)
+             key = (grid_lat, grid_lon)
+             
+             if key not in clusters:
+                 clusters[key] = {"count": 0, "lat_sum": 0, "lon_sum": 0}
+            
+             clusters[key]["count"] += 1
+             clusters[key]["lat_sum"] += r_lat
+             clusters[key]["lon_sum"] += r_lon
+             
+        # Format results
+        results = []
+        for key, data in clusters.items():
+            count = data["count"]
+            # Centroid
+            avg_lat = data["lat_sum"] / count
+            avg_lon = data["lon_sum"] / count
+            
+            # Helper for ID
+            geohash_sim = f"{key[0]},{key[1]}"
+            
+            results.append({
+                "geohash": geohash_sim,
+                "latitude": avg_lat,
+                "longitude": avg_lon,
+                "count": count
+            })
+            
+        return results
+
     async def count_nearby(self, lat: float, lon: float, radius_km: float = 1.0) -> int:
         try:
            # GEOSEARCH key FROMLONLAT lon lat BYRADIUS radius km ASC count 100

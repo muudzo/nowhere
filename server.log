@@ -1,0 +1,14 @@
+INFO:     Started server process [33267]
+INFO:     Waiting for application startup.
+2026-01-12 23:13:10,542 - backend.storage.redis - INFO - Connecting to Redis at redis://localhost:6379
+2026-01-12 23:13:10,553 - backend.storage.redis - INFO - Connected to Redis
+2026-01-12 23:13:10,553 - backend.storage.db - INFO - Initializing Database...
+2026-01-12 23:13:10,553 - backend.storage.db - WARNING - Failed to initialize DB: the greenlet library is required to use this function. No module named 'greenlet'
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2026-01-12 23:13:10,633 - backend.main - INFO - Request started: GET http://localhost:8000/intents/clusters?lat=40.7&lon=-74.0&radius=10 - RequestID: 06d3f1b9-90de-41e3-af00-c69d8f783ca3
+2026-01-12 23:13:10,640 - backend.main - INFO - Request completed: GET http://localhost:8000/intents/clusters?lat=40.7&lon=-74.0&radius=10 - RequestID: 06d3f1b9-90de-41e3-af00-c69d8f783ca3
+INFO:     127.0.0.1:53223 - "GET /intents/clusters?lat=40.7&lon=-74.0&radius=10 HTTP/1.1" 200 OK
+2026-01-12 23:13:10,643 - backend.main - INFO - Request started: GET http://localhost:8000/intents/nearby?lat=40.7&lon=-74.0&radius=10 - RequestID: d9d3af48-4b19-4d52-8a98-05c273e0da91
+2026-01-12 23:13:10,653 - backend.main - INFO - Request completed: GET http://localhost:8000/intents/nearby?lat=40.7&lon=-74.0&radius=10 - RequestID: d9d3af48-4b19-4d52-8a98-05c273e0da91
+INFO:     127.0.0.1:53223 - "GET /intents/nearby?lat=40.7&lon=-74.0&radius=10 HTTP/1.1" 200 OK

@@ -6,11 +6,12 @@ from ..domain.message import Message
 from ..storage.intent_repo import IntentRepository
 from ..storage.join_repo import JoinRepository
 from ..storage.message_repo import MessageRepository
-from .deps import get_current_user_id
+from ..spam import SpamDetector
+from .deps import get_current_user_id, get_spam_detector
 from .limiter import RateLimiter, DynamicRateLimiter
 from .message_schemas import CreateMessageRequest
 from .join_schemas import JoinRequest
-from .schemas import NearbyResponse, CreateIntentRequest
+from .schemas import NearbyResponse, CreateIntentRequest, ClusterResponse
 
 router = APIRouter()
 
@@ -49,7 +50,31 @@ async def create_intent(
     
     return intent
 
-# ... (nearby omitted)
+@router.get("/nearby", response_model=NearbyResponse)
+async def find_nearby_intents(
+    lat: float, 
+    lon: float, 
+    radius: float = 1.0, 
+    limit: int = 50,
+    repo: IntentRepository = Depends()
+):
+    intents = await repo.find_nearby(lat, lon, radius, limit)
+    
+    response = NearbyResponse(intents=intents, count=len(intents))
+    if not intents:
+        response.message = "It's quiet here. Start something?"
+        
+    return response
+
+@router.get("/clusters", response_model=ClusterResponse)
+async def get_intent_clusters(
+    lat: float,
+    lon: float,
+    radius: float = 10.0,
+    repo: IntentRepository = Depends()
+):
+    clusters = await repo.get_clusters(lat, lon, radius)
+    return {"clusters": clusters}
 
 @router.post("/{intent_id}/join", status_code=200, dependencies=[Depends(RateLimiter("join", 20, 3600))])
 async def join_intent(

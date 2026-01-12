@@ -4,8 +4,6 @@ from hashlib import sha256
 import re
 import logging
 from .storage.keys import RedisKeys
-from .storage.redis import get_redis_client
-from .api.deps import get_redis_client as get_redis_dep
 
 logger = logging.getLogger(__name__)
 
