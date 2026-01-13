@@ -1,8 +1,8 @@
 from random import uniform, choice, randint
 from uuid import uuid4
 from datetime import datetime, timezone
-from ..domain.intent import Intent
-from ..storage.intent_repo import IntentRepository
+from ..core.models.intent import Intent
+from ..infra.persistence.intent_repo import IntentRepository
 import logging
 
 logger = logging.getLogger(__name__)

@@ -3,7 +3,7 @@ from redis.asyncio import Redis
 from hashlib import sha256
 import re
 import logging
-from .storage.keys import RedisKeys
+from .infra.persistence.keys import RedisKeys
 
 logger = logging.getLogger(__name__)
 

@@ -2,8 +2,8 @@ import asyncio
 import httpx
 from uuid import uuid4
 from backend.tasks.seeder import seed_ambient_intents
-from backend.storage.intent_repo import IntentRepository
-from backend.storage.redis import RedisClient
+from backend.infra.persistence.intent_repo import IntentRepository
+from backend.infra.persistence.redis import RedisClient
 
 BASE_URL = "http://localhost:8000"
 

@@ -1,7 +1,7 @@
 from typing import Optional
 from redis.asyncio import Redis, from_url
 from contextlib import asynccontextmanager
-from ..config import settings
+from backend.config import settings
 from fastapi import FastAPI
 import logging
 

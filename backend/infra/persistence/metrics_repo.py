@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from .db import AsyncSessionLocal
 from .models import IntentMetric, JoinMetric, MessageMetric
-from ..domain.intent import Intent
+from backend.core.models.intent import Intent
 import logging
 
 logger = logging.getLogger(__name__)

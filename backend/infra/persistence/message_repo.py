@@ -1,8 +1,8 @@
 import logging
 from uuid import UUID
-from backend.storage.redis import RedisClient, get_redis_client
+from backend.infra.persistence.redis import RedisClient, get_redis_client
 from .keys import RedisKeys
-from ..domain.message import Message
+from backend.core.models.message import Message
 import json
 from fastapi import Depends
 from redis.asyncio import Redis

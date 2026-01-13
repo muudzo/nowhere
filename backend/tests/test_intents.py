@@ -1,11 +1,11 @@
 import pytest
 from httpx import AsyncClient
 from backend.main import app
-from backend.storage.redis import RedisClient, get_redis_client
-from backend.storage.keys import RedisKeys
-from backend.storage.intent_repo import IntentRepository
-from backend.storage.join_repo import JoinRepository
-from backend.storage.message_repo import MessageRepository
+from backend.infra.persistence.redis import RedisClient, get_redis_client
+from backend.infra.persistence.keys import RedisKeys
+from backend.infra.persistence.intent_repo import IntentRepository
+from backend.infra.persistence.join_repo import JoinRepository
+from backend.infra.persistence.message_repo import MessageRepository
 import uuid
 
 @pytest.fixture
@@ -15,20 +15,12 @@ async def client():
 
 from unittest.mock import patch
 
+from backend.main import lifespan
+
 @pytest.fixture(autouse=True)
 async def manage_redis():
-    await RedisClient.connect()
-    r = RedisClient.get_client()
-    if r:
-        await r.flushdb()
-    
-    # Override redis dependency to use the test-initialized client
-    app.dependency_overrides[get_redis_client] = lambda: r
-    
-    yield
-    
-    await RedisClient.disconnect()
-    app.dependency_overrides = {}
+    async with lifespan(app):
+        yield
 
 @pytest.mark.asyncio
 async def test_create_and_find_nearby_intent():

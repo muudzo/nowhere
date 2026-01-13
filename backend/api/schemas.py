@@ -1,6 +1,6 @@
 from typing import List, Optional
 from pydantic import BaseModel
-from ..domain.intent import Intent
+from ..core.models.intent import Intent
 
 class CreateIntentRequest(BaseModel):
     title: str

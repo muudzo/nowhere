@@ -7,14 +7,7 @@ W_DIST = 1.0
 W_FRESH = 2.0
 W_POP = 0.5
 
-def is_visible(intent: Intent, dist_km: float) -> bool:
-    """
-    Determines if an intent is visible based on distance and validation state.
-    Unverified intents (0 joins) are only visible within 200m.
-    """
-    if intent.join_count == 0 and not intent.is_system and dist_km > 0.2:
-        return False
-    return True
+
 
 def calculate_score(
     intent: Intent, 

@@ -1,15 +1,15 @@
 from datetime import datetime, timedelta, timezone
 import logging
-from ..domain.intent import Intent
-from backend.storage.redis import RedisClient, get_redis_client
+from backend.core.models.intent import Intent
+from backend.infra.persistence.redis import RedisClient, get_redis_client
 from .keys import RedisKeys
 from fastapi import Depends
 from redis.asyncio import Redis
 from .keys import RedisKeys
-from ..domain.intent import Intent
+from backend.core.models.intent import Intent
 import json
 import logging
-from ..domain.ranking import calculate_score, is_visible
+from backend.core.models.ranking import calculate_score
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class IntentRepository:
         # But wait, create_intent saves with default 0.
         # So we just need to overwrite it with the fresh count from Redis.
         # Using model_copy with update.
-        intent = intent.model_copy(update={"join_count": count})
+        intent = intent.with_join_count(count)
         return intent
 
     async def find_nearby(self, lat: float, lon: float, radius_km: float = 1.0, limit: int = 50) -> list[Intent]:
@@ -113,11 +113,11 @@ class IntentRepository:
         
         for intent, count in zip(candidates, counts):
             # Update count
-            intent = intent.model_copy(update={"join_count": count})
+            intent = intent.with_join_count(count)
             
             # Check Visibility
             dist = distances.get(str(intent.id), radius_km)
-            if not is_visible(intent, dist):
+            if not intent.is_visible(dist):
                 continue
 
             # Calculate Score
@@ -142,7 +142,7 @@ class IntentRepository:
             return 0
             
         intent = Intent.model_validate_json(data)
-        intent = intent.model_copy(update={"flags": intent.flags + 1})
+        intent = intent.flag()
         
         # Save back. We should use a lua script for atomicity but MVP.
         # Preserve TTL?

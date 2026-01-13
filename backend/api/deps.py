@@ -13,8 +13,29 @@ def get_current_user_id(request: Request) -> UUID:
 
 from fastapi import Depends
 from redis.asyncio import Redis
-from ..storage.redis import get_redis_client
+from ..infra.persistence.redis import get_redis_client
+from ..infra.persistence.redis import get_redis_client
 from ..spam import SpamDetector
+from ..infra.persistence.intent_repo import IntentRepository
+from ..infra.persistence.join_repo import JoinRepository
+from ..infra.persistence.message_repo import MessageRepository
+from ..infra.persistence.metrics_repo import MetricsRepository
+from ..services.intent_service import IntentService
 
 def get_spam_detector(redis: Redis = Depends(get_redis_client)) -> SpamDetector:
     return SpamDetector(redis)
+
+def get_intent_service(
+    intent_repo: IntentRepository = Depends(),
+    join_repo: JoinRepository = Depends(),
+    message_repo: MessageRepository = Depends(),
+    metrics_repo: MetricsRepository = Depends(),
+    spam_detector: SpamDetector = Depends(get_spam_detector)
+) -> IntentService:
+    return IntentService(
+        intent_repo=intent_repo,
+        join_repo=join_repo,
+        message_repo=message_repo,
+        metrics_repo=metrics_repo,
+        spam_detector=spam_detector
+    )

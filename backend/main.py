@@ -2,10 +2,12 @@ import uuid
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from .config import settings
-from .logging_config import configure_logging
-from .storage.redis import lifespan as redis_lifespan, RedisClient
-from .storage.db import init_db
+from .core.logging import configure_logging
+from .core.exceptions import DomainError, IntentNotFound, InvalidAction, IntentExpired, SpamDetected
+from .infra.persistence.redis import lifespan as redis_lifespan, RedisClient
+from .infra.persistence.db import init_db
 from .api.intents import router as intents_router
 from .api.debug import router as debug_router
 from .api.auth import router as auth_router
@@ -52,6 +54,28 @@ async def request_id_middleware(request: Request, call_next):
     response.headers["X-Request-ID"] = request_id
     logger.info(f"Request completed: {request.method} {request.url} - RequestID: {request_id}")
     return response
+
+@app.exception_handler(DomainError)
+async def domain_error_handler(request: Request, exc: DomainError):
+    logger.warning(f"Domain Error: {exc}")
+    return JSONResponse(
+        status_code=400,
+        content={"detail": str(exc)},
+    )
+
+@app.exception_handler(IntentNotFound)
+async def intent_not_found_handler(request: Request, exc: IntentNotFound):
+    return JSONResponse(
+        status_code=404,
+        content={"detail": str(exc) or "Intent not found"},
+    )
+    
+@app.exception_handler(SpamDetected)
+async def spam_handler(request: Request, exc: SpamDetected):
+    return JSONResponse(
+        status_code=400, # or 429? 400 for content spam
+        content={"detail": str(exc)},
+    )
 
 @app.get("/health")
 async def health_check():

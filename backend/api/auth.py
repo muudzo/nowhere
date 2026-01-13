@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from uuid import UUID, uuid4
 from ..auth.jwt import create_access_token
-from ..domain.intent import Intent # Just for example import correctness if needed logic elsewhere
+from ..core.models.intent import Intent # Just for example import correctness if needed logic elsewhere
 
 router = APIRouter()
 

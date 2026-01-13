@@ -1,14 +1,14 @@
 from fastapi import Request, Response, HTTPException, Depends
 from redis.asyncio import Redis
-from ..storage.redis import get_redis_client
-from ..storage.keys import RedisKeys
+from ..infra.persistence.redis import get_redis_client
+from ..infra.persistence.keys import RedisKeys
 from .deps import get_current_user_id
 import logging
 
 logger = logging.getLogger(__name__)
 
 from .schemas import CreateIntentRequest
-from ..storage.intent_repo import IntentRepository
+from ..infra.persistence.intent_repo import IntentRepository
 
 class RateLimiter:
     def __init__(self, action: str, limit: int, window: int = 3600):
