@@ -7,7 +7,7 @@ class Message(BaseModel):
     intent_id: UUID
     user_id: UUID
     content: str = Field(min_length=1)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime
 
     class Config:
         frozen = True

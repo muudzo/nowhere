@@ -21,6 +21,10 @@ from ..infra.persistence.join_repo import JoinRepository
 from ..infra.persistence.message_repo import MessageRepository
 from ..infra.persistence.metrics_repo import MetricsRepository
 from ..services.intent_service import IntentService
+from ..core.clock import Clock, SystemClock
+
+def get_clock() -> Clock:
+    return SystemClock()
 
 def get_spam_detector(redis: Redis = Depends(get_redis_client)) -> SpamDetector:
     return SpamDetector(redis)
@@ -30,12 +34,14 @@ def get_intent_service(
     join_repo: JoinRepository = Depends(),
     message_repo: MessageRepository = Depends(),
     metrics_repo: MetricsRepository = Depends(),
-    spam_detector: SpamDetector = Depends(get_spam_detector)
+    spam_detector: SpamDetector = Depends(get_spam_detector),
+    clock: Clock = Depends(get_clock)
 ) -> IntentService:
     return IntentService(
         intent_repo=intent_repo,
         join_repo=join_repo,
         message_repo=message_repo,
         metrics_repo=metrics_repo,
-        spam_detector=spam_detector
+        spam_detector=spam_detector,
+        clock=clock
     )

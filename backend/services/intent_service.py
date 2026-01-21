@@ -5,6 +5,7 @@ from ..core.models.message import Message
 from ..core.interfaces.repositories import IntentRepository, JoinRepository, MessageRepository, MetricsRepository
 from ..core.exceptions import DomainError
 from ..spam import SpamDetector
+from ..core.clock import Clock
 
 class IntentService:
     def __init__(
@@ -13,13 +14,15 @@ class IntentService:
         join_repo: JoinRepository,
         message_repo: MessageRepository,
         metrics_repo: MetricsRepository,
-        spam_detector: SpamDetector
+        spam_detector: SpamDetector,
+        clock: Clock
     ):
         self.intent_repo = intent_repo
         self.join_repo = join_repo
         self.message_repo = message_repo
         self.metrics_repo = metrics_repo
         self.spam_detector = spam_detector
+        self.clock = clock
 
     async def create_intent(
         self,
@@ -38,7 +41,8 @@ class IntentService:
             emoji=emoji,
             latitude=latitude,
             longitude=longitude,
-            user_id=user_id
+            user_id=user_id,
+            created_at=self.clock.now()
         )
 
         # Persistence
@@ -87,7 +91,8 @@ class IntentService:
         message = Message(
             intent_id=intent_id,
             user_id=user_id,
-            content=content
+            content=content,
+            created_at=self.clock.now()
         )
         
         await self.message_repo.save_message(message)

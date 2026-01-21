@@ -11,7 +11,7 @@ class Intent(BaseModel):
     emoji: str
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime
     is_system: bool = False
     join_count: int = 0
     flags: int = 0
