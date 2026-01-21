@@ -3,32 +3,38 @@ from fastapi import APIRouter, HTTPException, Depends
 from ..core.models.intent import Intent
 from ..core.models.message import Message
 from ..core.exceptions import IntentNotFound, DomainError, InvalidAction
-from .deps import get_current_user_id, get_intent_service
+from ..core.commands import CreateIntent, JoinIntent, PostMessage, FlagIntent
+from ..core.clock import Clock
+from .deps import get_current_user_id, get_intent_command_handler, get_intent_query_service, get_clock
 from .limiter import RateLimiter, DynamicRateLimiter
 from .message_schemas import CreateMessageRequest
 from .join_schemas import JoinRequest
 from .schemas import NearbyResponse, CreateIntentRequest, ClusterResponse
-from ..services.intent_service import IntentService
+from ..services.intent_command_handler import IntentCommandHandler
+from ..services.intent_query_service import IntentQueryService
 
 router = APIRouter()
 
 @router.post("/", response_model=Intent, status_code=201, dependencies=[Depends(DynamicRateLimiter("create_intent", 5, 3600))])
 async def create_intent(
     intent_request: CreateIntentRequest, 
-    service: IntentService = Depends(get_intent_service),
-    user_id: str = Depends(get_current_user_id)
+    handler: IntentCommandHandler = Depends(get_intent_command_handler),
+    user_id: str = Depends(get_current_user_id),
+    clock: Clock = Depends(get_clock)
 ):
+    cmd = CreateIntent(
+        user_id=str(user_id),
+        title=intent_request.title,
+        emoji=intent_request.emoji,
+        latitude=intent_request.latitude,
+        longitude=intent_request.longitude,
+        timestamp=clock.now()
+    )
+    
     try:
-        intent = await service.create_intent(
-            title=intent_request.title,
-            emoji=intent_request.emoji,
-            latitude=intent_request.latitude,
-            longitude=intent_request.longitude,
-            user_id=str(user_id)
-        )
-        return intent
+        return await handler.handle_create_intent(cmd)
     except ValueError as e:
-         raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422, detail=str(e))
 
 @router.get("/nearby", response_model=NearbyResponse)
 async def find_nearby_intents(
@@ -36,9 +42,9 @@ async def find_nearby_intents(
     lon: float, 
     radius: float = 1.0, 
     limit: int = 50,
-    service: IntentService = Depends(get_intent_service)
+    query_service: IntentQueryService = Depends(get_intent_query_service)
 ):
-    intents = await service.get_nearby_intents(lat, lon, radius, limit)
+    intents = await query_service.get_nearby(lat, lon, radius, limit)
     
     response = NearbyResponse(intents=intents, count=len(intents))
     if not intents:
@@ -51,21 +57,28 @@ async def get_intent_clusters(
     lat: float,
     lon: float,
     radius: float = 10.0,
-    service: IntentService = Depends(get_intent_service)
+    query_service: IntentQueryService = Depends(get_intent_query_service)
 ):
-    return await service.get_clusters(lat, lon, radius)
+    return await query_service.get_clusters(lat, lon, radius)
 
 @router.post("/{intent_id}/join", status_code=200, dependencies=[Depends(RateLimiter("join", 20, 3600))])
 async def join_intent(
     intent_id: UUID, 
     user_id: UUID = Depends(get_current_user_id),
-    service: IntentService = Depends(get_intent_service)
+    handler: IntentCommandHandler = Depends(get_intent_command_handler),
+    clock: Clock = Depends(get_clock)
 ):
+    cmd = JoinIntent(
+        intent_id=intent_id,
+        user_id=user_id,
+        timestamp=clock.now()
+    )
+    
     try:
-        result = await service.join_intent(intent_id, user_id)
-        if not result["joined"]:
-             return {"joined": False, "intent_id": intent_id, "message": "Already joined"}
-        return result
+        joined = await handler.handle_join_intent(cmd)
+        if not joined:
+            return {"joined": False, "intent_id": intent_id, "message": "Already joined"}
+        return {"joined": True, "intent_id": intent_id}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except DomainError as e:
@@ -76,22 +89,34 @@ async def post_message(
     intent_id: UUID, 
     request: CreateMessageRequest, 
     user_id: UUID = Depends(get_current_user_id),
-    service: IntentService = Depends(get_intent_service)
+    handler: IntentCommandHandler = Depends(get_intent_command_handler),
+    clock: Clock = Depends(get_clock)
 ):
+    cmd = PostMessage(
+        intent_id=intent_id,
+        user_id=user_id,
+        content=request.content,
+        timestamp=clock.now()
+    )
+    
     try:
-        message = await service.post_message(intent_id, user_id, request.content)
-        return message
+        return await handler.handle_post_message(cmd)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except DomainError as e:
         # Map domain errors
         if "Must join" in str(e):
-             raise HTTPException(status_code=403, detail=str(e))
+            raise HTTPException(status_code=403, detail=str(e))
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/{intent_id}/flag", status_code=200)
 async def flag_intent(
-    intent_id: UUID, 
-    service: IntentService = Depends(get_intent_service)
+    intent_id: UUID,
+    handler: IntentCommandHandler = Depends(get_intent_command_handler),
+    clock: Clock = Depends(get_clock)
 ):
-    return await service.flag_intent(intent_id)
+    cmd = FlagIntent(
+        intent_id=intent_id,
+        timestamp=clock.now()
+    )
+    return {"id": intent_id, "flags": await handler.handle_flag_intent(cmd)}

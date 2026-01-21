@@ -21,6 +21,8 @@ from ..infra.persistence.join_repo import JoinRepository
 from ..infra.persistence.message_repo import MessageRepository
 from ..infra.persistence.metrics_repo import MetricsRepository
 from ..services.intent_service import IntentService
+from ..services.intent_command_handler import IntentCommandHandler
+from ..services.intent_query_service import IntentQueryService
 from ..core.clock import Clock, SystemClock
 
 def get_clock() -> Clock:
@@ -45,3 +47,23 @@ def get_intent_service(
         spam_detector=spam_detector,
         clock=clock
     )
+
+def get_intent_command_handler(
+    intent_repo: IntentRepository = Depends(),
+    join_repo: JoinRepository = Depends(),
+    message_repo: MessageRepository = Depends(),
+    metrics_repo: MetricsRepository = Depends(),
+    spam_detector: SpamDetector = Depends(get_spam_detector)
+) -> IntentCommandHandler:
+    return IntentCommandHandler(
+        intent_repo=intent_repo,
+        join_repo=join_repo,
+        message_repo=message_repo,
+        metrics_repo=metrics_repo,
+        spam_detector=spam_detector
+    )
+
+def get_intent_query_service(
+    intent_repo: IntentRepository = Depends()
+) -> IntentQueryService:
+    return IntentQueryService(intent_repo=intent_repo)
