@@ -1,10 +1,12 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 from ..core.command_handler import CommandHandler
 from ..core.commands import CreateIntent, JoinIntent, PostMessage, FlagIntent
 from ..core.models.intent import Intent
 from ..core.models.message import Message
-from ..core.interfaces.repositories import IntentRepository, JoinRepository, MessageRepository, MetricsRepository
+from ..core.interfaces.repositories import IntentRepository, JoinRepository, MessageRepository
 from ..core.exceptions import DomainError
+from ..core.events import IntentCreated, IntentJoined, MessagePosted, IntentFlagged
+from ..core.event_bus import EventBus
 from ..spam import SpamDetector
 
 
@@ -16,13 +18,13 @@ class IntentCommandHandler:
         intent_repo: IntentRepository,
         join_repo: JoinRepository,
         message_repo: MessageRepository,
-        metrics_repo: MetricsRepository,
+        event_bus: EventBus,
         spam_detector: SpamDetector
     ):
         self.intent_repo = intent_repo
         self.join_repo = join_repo
         self.message_repo = message_repo
-        self.metrics_repo = metrics_repo
+        self.event_bus = event_bus
         self.spam_detector = spam_detector
 
     async def handle_create_intent(self, cmd: CreateIntent) -> Intent:
@@ -43,8 +45,18 @@ class IntentCommandHandler:
         # Persistence
         await self.intent_repo.save_intent(intent)
         
-        # Metrics (will be replaced with events in Commit 3)
-        await self.metrics_repo.log_intent_creation(intent)
+        # Emit Event (replaces direct metrics call)
+        event = IntentCreated(
+            event_id=uuid4(),
+            timestamp=cmd.timestamp,
+            intent_id=intent.id,
+            user_id=intent.user_id or "",
+            title=intent.title,
+            emoji=intent.emoji,
+            latitude=intent.latitude,
+            longitude=intent.longitude
+        )
+        await self.event_bus.publish(event)
         
         return intent
 
@@ -52,7 +64,13 @@ class IntentCommandHandler:
         """Handle joining an intent."""
         joined = await self.join_repo.save_join(cmd.intent_id, cmd.user_id)
         if joined:
-            await self.metrics_repo.log_join(str(cmd.intent_id), str(cmd.user_id))
+            event = IntentJoined(
+                event_id=uuid4(),
+                timestamp=cmd.timestamp,
+                intent_id=cmd.intent_id,
+                user_id=cmd.user_id
+            )
+            await self.event_bus.publish(event)
         return joined
 
     async def handle_post_message(self, cmd: PostMessage) -> Message:
@@ -72,10 +90,31 @@ class IntentCommandHandler:
         )
         
         await self.message_repo.save_message(message)
-        await self.metrics_repo.log_message(str(cmd.intent_id), str(cmd.user_id), len(cmd.content))
+        
+        # Emit Event
+        event = MessagePosted(
+            event_id=uuid4(),
+            timestamp=cmd.timestamp,
+            message_id=message.id,
+            intent_id=cmd.intent_id,
+            user_id=cmd.user_id,
+            content_length=len(cmd.content)
+        )
+        await self.event_bus.publish(event)
         
         return message
 
     async def handle_flag_intent(self, cmd: FlagIntent) -> int:
         """Handle flagging an intent."""
-        return await self.intent_repo.flag_intent(cmd.intent_id)
+        new_flag_count = await self.intent_repo.flag_intent(cmd.intent_id)
+        
+        # Emit Event
+        event = IntentFlagged(
+            event_id=uuid4(),
+            timestamp=cmd.timestamp,
+            intent_id=cmd.intent_id,
+            new_flag_count=new_flag_count
+        )
+        await self.event_bus.publish(event)
+        
+        return new_flag_count

@@ -23,13 +23,34 @@ from ..infra.persistence.metrics_repo import MetricsRepository
 from ..services.intent_service import IntentService
 from ..services.intent_command_handler import IntentCommandHandler
 from ..services.intent_query_service import IntentQueryService
+from ..services.metrics_event_handler import MetricsEventHandler
 from ..core.clock import Clock, SystemClock
+from ..core.event_bus import EventBus, InMemoryEventBus
+from ..core.events import IntentCreated, IntentJoined, MessagePosted, IntentFlagged
+
+# Global event bus instance (singleton pattern)
+_event_bus = None
 
 def get_clock() -> Clock:
     return SystemClock()
 
 def get_spam_detector(redis: Redis = Depends(get_redis_client)) -> SpamDetector:
     return SpamDetector(redis)
+
+def get_event_bus(metrics_repo: MetricsRepository = Depends()) -> EventBus:
+    """Get the global event bus instance and wire up handlers."""
+    global _event_bus
+    if _event_bus is None:
+        _event_bus = InMemoryEventBus()
+        
+        # Wire up metrics event handler
+        metrics_handler = MetricsEventHandler(metrics_repo)
+        _event_bus.subscribe(IntentCreated, metrics_handler.on_intent_created)
+        _event_bus.subscribe(IntentJoined, metrics_handler.on_intent_joined)
+        _event_bus.subscribe(MessagePosted, metrics_handler.on_message_posted)
+        _event_bus.subscribe(IntentFlagged, metrics_handler.on_intent_flagged)
+    
+    return _event_bus
 
 def get_intent_service(
     intent_repo: IntentRepository = Depends(),
@@ -52,14 +73,14 @@ def get_intent_command_handler(
     intent_repo: IntentRepository = Depends(),
     join_repo: JoinRepository = Depends(),
     message_repo: MessageRepository = Depends(),
-    metrics_repo: MetricsRepository = Depends(),
+    event_bus: EventBus = Depends(get_event_bus),
     spam_detector: SpamDetector = Depends(get_spam_detector)
 ) -> IntentCommandHandler:
     return IntentCommandHandler(
         intent_repo=intent_repo,
         join_repo=join_repo,
         message_repo=message_repo,
-        metrics_repo=metrics_repo,
+        event_bus=event_bus,
         spam_detector=spam_detector
     )
 
