@@ -1,10 +1,12 @@
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 import re
 from ..exceptions import InvalidAction
 
 class Intent(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     id: UUID = Field(default_factory=uuid4)
     user_id: str | None = None
     title: str = Field(min_length=1, max_length=50)
@@ -20,9 +22,6 @@ class Intent(BaseModel):
     @classmethod
     def round_coordinates(cls, v: float) -> float:
         return round(v, 3)
-
-    class Config:
-        frozen = True
 
     @field_validator('emoji')
     @classmethod

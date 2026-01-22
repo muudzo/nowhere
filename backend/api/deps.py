@@ -69,18 +69,21 @@ def get_intent_service(
         clock=clock
     )
 
+from ..core.unit_of_work import UnitOfWork
+from ..infra.persistence.unit_of_work import RedisUnitOfWork
+
+def get_unit_of_work(
+    redis: Redis = Depends(get_redis_client),
+    event_bus: EventBus = Depends(get_event_bus)
+) -> UnitOfWork:
+    return RedisUnitOfWork(redis=redis, event_bus=event_bus)
+
 def get_intent_command_handler(
-    intent_repo: IntentRepository = Depends(),
-    join_repo: JoinRepository = Depends(),
-    message_repo: MessageRepository = Depends(),
-    event_bus: EventBus = Depends(get_event_bus),
+    uow: UnitOfWork = Depends(get_unit_of_work),
     spam_detector: SpamDetector = Depends(get_spam_detector)
 ) -> IntentCommandHandler:
     return IntentCommandHandler(
-        intent_repo=intent_repo,
-        join_repo=join_repo,
-        message_repo=message_repo,
-        event_bus=event_bus,
+        uow=uow,
         spam_detector=spam_detector
     )
 
