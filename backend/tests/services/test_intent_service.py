@@ -5,6 +5,7 @@ from backend.services.intent_service import IntentService
 from backend.core.models.intent import Intent
 from backend.core.models.message import Message
 from backend.core.exceptions import DomainError
+from backend.core.clock import Clock
 
 @pytest.fixture
 def mock_intent_repo():
@@ -40,13 +41,21 @@ def mock_spam_detector():
     return detector
 
 @pytest.fixture
-def service(mock_intent_repo, mock_join_repo, mock_message_repo, mock_metrics_repo, mock_spam_detector):
+def mock_clock():
+    clock = MagicMock(spec=Clock)
+    from datetime import datetime, timezone
+    clock.now = MagicMock(return_value=datetime.now(timezone.utc))
+    return clock
+
+@pytest.fixture
+def service(mock_intent_repo, mock_join_repo, mock_message_repo, mock_metrics_repo, mock_spam_detector, mock_clock):
     return IntentService(
         intent_repo=mock_intent_repo,
         join_repo=mock_join_repo,
         message_repo=mock_message_repo,
         metrics_repo=mock_metrics_repo,
-        spam_detector=mock_spam_detector
+        spam_detector=mock_spam_detector,
+        clock=mock_clock
     )
 
 @pytest.mark.asyncio

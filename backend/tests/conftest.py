@@ -22,6 +22,8 @@ def postgres_container():
         container = PostgresContainer("postgres:15")
         container.start()
         dsn = container.get_connection_url()
+        # Convert psycopg2 format to asyncpg format
+        dsn = dsn.replace("postgresql+psycopg2://", "postgresql://")
         
         yield dsn
 
@@ -31,7 +33,7 @@ def postgres_container():
             pass
     except Exception:
         # If testcontainers fails, just yield a dummy DSN
-        yield "postgresql+asyncpg://test:test@localhost:5432/test"
+        yield "postgresql://test:test@localhost:5432/test"
 
 
 # Fake Redis fixture using fakeredis
