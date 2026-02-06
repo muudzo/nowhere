@@ -50,13 +50,14 @@ class DynamicRateLimiter(RateLimiter):
         intent_request: CreateIntentRequest,
         user_id: str = Depends(get_current_user_id),
         redis: Redis = Depends(get_redis_client),
-        repo: IntentRepository = Depends()
+        redis_for_repo: Redis = Depends(get_redis_client)
     ):
         # Calculate dynamic limit
         limit = self.limit
         count = 0
         
         try:
+            repo = IntentRepository(redis=redis_for_repo)
             count = await repo.count_nearby(intent_request.latitude, intent_request.longitude, radius_km=1.0)
             if count > 50:
                 limit = max(1, int(self.limit * 0.2)) # Harsh reduction in super dense areas

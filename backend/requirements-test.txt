@@ -1,0 +1,9 @@
+pytest
+pytest-asyncio
+httpx
+fakeredis
+asyncpg
+testcontainers
+
+# Notes: Testcontainers requires Docker available in the environment.
+# Run tests with: `pyenv shell 3.13.4 && pip install -r backend/requirements-test.txt && pytest -q`.

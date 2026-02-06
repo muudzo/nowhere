@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from ..infra.persistence.intent_repo import IntentRepository
+from ..api.deps import get_intent_repo
 from ..tasks.seeder import seed_ambient_intents
 from ..core.models.intent import Intent
 
@@ -12,10 +13,10 @@ class DebugSeedRequest(BaseModel):
     count: int = 3
     radius_km: float = 0.5
 
-@router.post("/seed", response_model=list[Intent])
+@router.post("/seed")
 async def seed_intents(
     request: DebugSeedRequest,
-    repo: IntentRepository = Depends()
+    repo: IntentRepository = Depends(get_intent_repo)
 ):
     """
     Debug endpoint to manually trigger ambient intent seeding.

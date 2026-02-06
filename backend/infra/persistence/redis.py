@@ -37,8 +37,7 @@ async def get_redis_client() -> Redis:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Determine Redis URL from settings or default
-    # For now, hardcode or get from env if we added it to settings (we haven't yet, let's fix that)
-    redis_url = getattr(settings, "redis_url", "redis://localhost:6379")
+    redis_url = getattr(settings, "REDIS_DSN", "redis://localhost:6379")
     await RedisClient.connect(redis_url)
     yield
     await RedisClient.disconnect()

@@ -34,10 +34,22 @@ _event_bus = None
 def get_clock() -> Clock:
     return SystemClock()
 
+def get_intent_repo(redis: Redis = Depends(get_redis_client)) -> IntentRepository:
+    return IntentRepository(redis=redis)
+
+def get_join_repo(redis: Redis = Depends(get_redis_client)) -> JoinRepository:
+    return JoinRepository(redis=redis)
+
+def get_message_repo(redis: Redis = Depends(get_redis_client)) -> MessageRepository:
+    return MessageRepository(redis=redis)
+
+def get_metrics_repo(redis: Redis = Depends(get_redis_client)) -> MetricsRepository:
+    return MetricsRepository(redis=redis)
+
 def get_spam_detector(redis: Redis = Depends(get_redis_client)) -> SpamDetector:
     return SpamDetector(redis)
 
-def get_event_bus(metrics_repo: MetricsRepository = Depends()) -> EventBus:
+def get_event_bus(metrics_repo: MetricsRepository = Depends(get_metrics_repo)) -> EventBus:
     """Get the global event bus instance and wire up handlers."""
     global _event_bus
     if _event_bus is None:
@@ -53,10 +65,10 @@ def get_event_bus(metrics_repo: MetricsRepository = Depends()) -> EventBus:
     return _event_bus
 
 def get_intent_service(
-    intent_repo: IntentRepository = Depends(),
-    join_repo: JoinRepository = Depends(),
-    message_repo: MessageRepository = Depends(),
-    metrics_repo: MetricsRepository = Depends(),
+    intent_repo: IntentRepository = Depends(get_intent_repo),
+    join_repo: JoinRepository = Depends(get_join_repo),
+    message_repo: MessageRepository = Depends(get_message_repo),
+    metrics_repo: MetricsRepository = Depends(get_metrics_repo),
     spam_detector: SpamDetector = Depends(get_spam_detector),
     clock: Clock = Depends(get_clock)
 ) -> IntentService:
@@ -88,6 +100,6 @@ def get_intent_command_handler(
     )
 
 def get_intent_query_service(
-    intent_repo: IntentRepository = Depends()
+    intent_repo: IntentRepository = Depends(get_intent_repo)
 ) -> IntentQueryService:
     return IntentQueryService(intent_repo=intent_repo)

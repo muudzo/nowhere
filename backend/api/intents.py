@@ -15,7 +15,7 @@ from ..services.intent_query_service import IntentQueryService
 
 router = APIRouter()
 
-@router.post("/", response_model=Intent, status_code=201, dependencies=[Depends(DynamicRateLimiter("create_intent", 5, 3600))])
+@router.post("/", status_code=201, dependencies=[Depends(DynamicRateLimiter("create_intent", 5, 3600))])
 async def create_intent(
     intent_request: CreateIntentRequest, 
     handler: IntentCommandHandler = Depends(get_intent_command_handler),
@@ -36,7 +36,7 @@ async def create_intent(
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
-@router.get("/nearby", response_model=NearbyResponse)
+@router.get("/nearby")
 async def find_nearby_intents(
     lat: float, 
     lon: float, 
@@ -52,7 +52,7 @@ async def find_nearby_intents(
         
     return response
 
-@router.get("/clusters", response_model=ClusterResponse)
+@router.get("/clusters")
 async def get_intent_clusters(
     lat: float,
     lon: float,
@@ -84,7 +84,7 @@ async def join_intent(
     except DomainError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/{intent_id}/messages", response_model=Message, dependencies=[Depends(RateLimiter("message", 100, 3600))])
+@router.post("/{intent_id}/messages", dependencies=[Depends(RateLimiter("message", 100, 3600))])
 async def post_message(
     intent_id: UUID, 
     request: CreateMessageRequest, 

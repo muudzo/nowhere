@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import logging
+from uuid import UUID
 from backend.core.models.intent import Intent
 from backend.infra.persistence.redis import RedisClient, get_redis_client
 from .keys import RedisKeys
