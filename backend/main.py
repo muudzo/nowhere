@@ -64,21 +64,13 @@ app = FastAPI(title=settings.APP_NAME, version="0.1.0", lifespan=lifespan)
 
 # --- MIDDLEWARE ---
 
-# 1. CORS - Permissive but secure enough for credentials
-# We allow specific origins including the dynamic LAN IP
-origins = [
-    "http://localhost:8081",
-    "http://localhost:8082",
-    "http://localhost:3000",
-    "http://127.0.0.1:8081",
-    f"http://{LOCAL_IP}:8081", # Auto-detected LAN IP
-    "exp://10.10.0.69:8081", # Likely Expo Go IP for this user
-]
-
+# 1. CORS - Ultra Permissive
+# allow_origins=['*'] with credentials=True is technically invalid in spec,
+# so we use allow_origin_regex='.*' to match ANY origin while allowing credentials.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}):\d+",
+    allow_origins=[], # Handled by regex
+    allow_origin_regex='.*', # Allows ALL origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -99,6 +91,7 @@ async def request_id_middleware(request: Request, call_next):
         return response
     except Exception as e:
         logger.error(f"Request failed: {request.method} {request.url} - Error: {e}")
+        # Re-raise so the global handler catches it
         raise e 
 
 # --- ROUTERS ---
@@ -112,6 +105,8 @@ app.include_router(auth_router, prefix="/auth", tags=["auth"])
 async def global_exception_handler(request: Request, exc: Exception):
     """
     Catch-all exception handler to log full stack traces and return 500 JSON.
+    This ensures we never send a raw 500 text body or crash the connection.
+    CORS middleware runs before this, so headers should be attached (mostly).
     """
     logger.error(f"Global Exception: {exc}")
     traceback.print_exc() # Print full stack trace to console
@@ -120,7 +115,8 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={
             "message": "Internal Server Error",
             "detail": str(exc),
-            "type": type(exc).__name__
+            "type": type(exc).__name__,
+            "trace": traceback.format_exc().splitlines()[-3:] # Last 3 lines of trace for client safety
         }
     )
 

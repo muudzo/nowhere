@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     )
     DEVICE_TOKEN_SECRET: str = Field(default="devsecret", validation_alias="DEVICE_TOKEN_SECRET")
     REDIS_TTL_SECONDS: int = Field(default=60 * 60 * 6, validation_alias="REDIS_TTL_SECONDS")
+    
+    # Explicit JWT settings (lowercase to match usage in jwt.py)
+    jwt_secret: str = Field(default="devsecret", validation_alias="JWT_SECRET") 
+    jwt_algorithm: str = Field(default="HS256", validation_alias="JWT_ALGORITHM")
 
     model_config = ConfigDict(env_file=".env")
 
@@ -37,6 +41,14 @@ def _ensure_compat_aliases(s: Settings):
     try:
         # older code expects `app_name` lowercased
         setattr(s, "app_name", getattr(s, "APP_NAME"))
+    except Exception:
+        pass
+    
+    try:
+        if not hasattr(s, "jwt_secret"):
+            setattr(s, "jwt_secret", getattr(s, "JWT_SECRET"))
+        if not hasattr(s, "jwt_algorithm"):
+            setattr(s, "jwt_algorithm", getattr(s, "JWT_ALGORITHM"))
     except Exception:
         pass
 
