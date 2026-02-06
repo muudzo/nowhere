@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "nowhere-backend"
     REDIS_DSN: str = Field(default="redis://localhost:6379/0", validation_alias="REDIS_DSN")
     POSTGRES_DSN: str = Field(
-        default="postgresql+asyncpg://postgres:postgres@localhost:5432/nowhere",
+        default="sqlite+aiosqlite:///./nowhere.db",
         validation_alias="POSTGRES_DSN",
     )
     DEVICE_TOKEN_SECRET: str = Field(default="devsecret", validation_alias="DEVICE_TOKEN_SECRET")

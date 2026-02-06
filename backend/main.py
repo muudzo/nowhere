@@ -36,7 +36,14 @@ app.add_middleware(AuthMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8081", "http://localhost:8082", "http://localhost:8083", "http://192.168.0.12:8081", "*"], # Add common Expo ports
+    allow_origins=[
+        "http://localhost:8081",
+        "http://localhost:8082",
+        "http://localhost:3000",
+        "http://127.0.0.1:8081",
+        "http://10.10.0.69:8081",  # User's current IP
+    ],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}):\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
