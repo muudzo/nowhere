@@ -1,4 +1,4 @@
-import aioredis
+import redis.asyncio as redis
 from typing import Any, Optional, List
 from backend.domain.models import Activity, Message, Join
 import json
@@ -14,7 +14,12 @@ def _key(prefix: str, id: str) -> str:
 
 
 async def create_redis(dsn: str):
-    r = await aioredis.from_url(dsn, encoding="utf-8", decode_responses=True)
+    r = redis.from_url(dsn, encoding="utf-8", decode_responses=True)
+    # connection establishment (optional): ping to verify
+    try:
+        await r.ping()
+    except Exception:
+        pass
     return r
 
 
