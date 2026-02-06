@@ -20,26 +20,32 @@ export default function CreateScreen({ onCancel, onCreated }: Props) {
         }
 
         setCreating(true);
+        console.log("Starting creation flow...");
         try {
+            console.log("Getting location...");
             const loc = await getCurrentLocation();
+            console.log("Location received:", loc);
             if (!loc) {
                 Alert.alert("Permission", "Location needed to create intent");
                 setCreating(false);
                 return;
             }
 
+            console.log("Sending API request to:", '/intents/');
             await api.post('/intents/', {
                 title: title,
                 emoji: emoji,
                 latitude: loc.latitude,
                 longitude: loc.longitude
             });
+            console.log("API request successful");
 
             onCreated();
         } catch (e) {
-            console.error(e);
+            console.error("Creation failed:", e);
             Alert.alert("Error", "Failed to create intent");
         } finally {
+            console.log("Creation flow finished (finally block)");
             setCreating(false);
         }
     };

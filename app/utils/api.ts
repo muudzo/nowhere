@@ -6,11 +6,12 @@ import { getOrCreateIdentity } from './identity';
 // Use 10.0.2.2 for Android Emulator loopback.
 // Use machine IP for physical device.
 // Hardcoding for now based on env or default.
-const BASE_URL = 'http://localhost:8000';
+const BASE_URL = 'http://10.10.0.69:8000'; // User's LAN IP
 
 export const api = axios.create({
     baseURL: BASE_URL,
-    withCredentials: true, // Persist cookies still, for backward compat/fallback
+    withCredentials: true,
+    timeout: 10000, // 10s timeout
 });
 
 import { getAccessToken } from './identity';
