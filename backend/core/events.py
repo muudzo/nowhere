@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID, uuid4
 from datetime import datetime
 
@@ -8,8 +8,7 @@ class DomainEvent(BaseModel):
     event_id: UUID = Field(default_factory=uuid4)
     timestamp: datetime
     
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class IntentCreated(DomainEvent):

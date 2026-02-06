@@ -1,0 +1,100 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.4, pytest-7.4.4, pluggy-1.6.0 -- /Users/michaelnyemudzo/.pyenv/versions/3.13.4/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/michaelnyemudzo/nowhere
+plugins: anyio-4.12.1, asyncio-0.23.3
+asyncio: mode=Mode.STRICT
+collecting ... collected 17 items / 2 errors
+
+==================================== ERRORS ====================================
+_________________ ERROR collecting backend/tests/test_auth.py __________________
+backend/tests/test_auth.py:4: in <module>
+    from backend.main import app
+backend/main.py:11: in <module>
+    from .api.intents import router as intents_router
+backend/api/intents.py:18: in <module>
+    @router.post("/", status_code=201, dependencies=[Depends(DynamicRateLimiter("create_intent", 5, 3600))])
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/routing.py:956: in decorator
+    self.add_api_route(
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/routing.py:895: in add_api_route
+    route = route_class(
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/routing.py:529: in __init__
+    get_parameterless_sub_dependant(depends=depends, path=self.path_format),
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/dependencies/utils.py:124: in get_parameterless_sub_dependant
+    return get_sub_dependant(depends=depends, dependency=depends.dependency, path=path)
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/dependencies/utils.py:147: in get_sub_dependant
+    sub_dependant = get_dependant(
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/dependencies/utils.py:268: in get_dependant
+    sub_dependant = get_param_sub_dependant(
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/dependencies/utils.py:111: in get_param_sub_dependant
+    return get_sub_dependant(
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/dependencies/utils.py:147: in get_sub_dependant
+    sub_dependant = get_dependant(
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/dependencies/utils.py:261: in get_dependant
+    type_annotation, depends, param_field = analyze_param(
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/dependencies/utils.py:442: in analyze_param
+    field = create_response_field(
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/utils.py:101: in create_response_field
+    raise fastapi.exceptions.FastAPIError(
+E   fastapi.exceptions.FastAPIError: Invalid args for response field! Hint: check that redis.asyncio.client.Redis | None is a valid Pydantic field type. If you are using a return type annotation that is not a valid Pydantic field (e.g. Union[Response, dict, None]) you can disable generating the response model from the type annotation with the path operation decorator parameter response_model=None. Read more: https://fastapi.tiangolo.com/tutorial/response-model/
+________________ ERROR collecting backend/tests/test_intents.py ________________
+backend/tests/test_intents.py:3: in <module>
+    from backend.main import app
+backend/main.py:11: in <module>
+    from .api.intents import router as intents_router
+backend/api/intents.py:18: in <module>
+    @router.post("/", status_code=201, dependencies=[Depends(DynamicRateLimiter("create_intent", 5, 3600))])
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/routing.py:956: in decorator
+    self.add_api_route(
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/routing.py:895: in add_api_route
+    route = route_class(
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/routing.py:529: in __init__
+    get_parameterless_sub_dependant(depends=depends, path=self.path_format),
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/dependencies/utils.py:124: in get_parameterless_sub_dependant
+    return get_sub_dependant(depends=depends, dependency=depends.dependency, path=path)
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/dependencies/utils.py:147: in get_sub_dependant
+    sub_dependant = get_dependant(
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/dependencies/utils.py:268: in get_dependant
+    sub_dependant = get_param_sub_dependant(
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/dependencies/utils.py:111: in get_param_sub_dependant
+    return get_sub_dependant(
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/dependencies/utils.py:147: in get_sub_dependant
+    sub_dependant = get_dependant(
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/dependencies/utils.py:261: in get_dependant
+    type_annotation, depends, param_field = analyze_param(
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/dependencies/utils.py:442: in analyze_param
+    field = create_response_field(
+../.pyenv/versions/3.13.4/lib/python3.13/site-packages/fastapi/utils.py:101: in create_response_field
+    raise fastapi.exceptions.FastAPIError(
+E   fastapi.exceptions.FastAPIError: Invalid args for response field! Hint: check that redis.asyncio.client.Redis | None is a valid Pydantic field type. If you are using a return type annotation that is not a valid Pydantic field (e.g. Union[Response, dict, None]) you can disable generating the response model from the type annotation with the path operation decorator parameter response_model=None. Read more: https://fastapi.tiangolo.com/tutorial/response-model/
+=============================== warnings summary ===============================
+backend/config.py:7
+  /Users/michaelnyemudzo/nowhere/backend/config.py:7: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'env'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    REDIS_DSN: str = Field("redis://localhost:6379/0", env="REDIS_DSN")
+
+backend/config.py:8
+  /Users/michaelnyemudzo/nowhere/backend/config.py:8: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'env'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    POSTGRES_DSN: str = Field(
+
+backend/config.py:12
+  /Users/michaelnyemudzo/nowhere/backend/config.py:12: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'env'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    DEVICE_TOKEN_SECRET: str = Field("devsecret", env="DEVICE_TOKEN_SECRET")
+
+backend/config.py:13
+  /Users/michaelnyemudzo/nowhere/backend/config.py:13: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'env'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    REDIS_TTL_SECONDS: int = Field(60 * 60 * 6, env="REDIS_TTL_SECONDS")
+
+backend/core/commands.py:6
+  /Users/michaelnyemudzo/nowhere/backend/core/commands.py:6: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class Command(BaseModel):
+
+backend/core/events.py:6
+  /Users/michaelnyemudzo/nowhere/backend/core/events.py:6: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class DomainEvent(BaseModel):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR backend/tests/test_auth.py - fastapi.exceptions.FastAPIError: Invalid a...
+ERROR backend/tests/test_intents.py - fastapi.exceptions.FastAPIError: Invali...
+!!!!!!!!!!!!!!!!!!! Interrupted: 2 errors during collection !!!!!!!!!!!!!!!!!!!!
+======================== 6 warnings, 2 errors in 1.18s =========================

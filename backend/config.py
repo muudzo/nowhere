@@ -1,18 +1,18 @@
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, ConfigDict
 
 
 class Settings(BaseSettings):
     APP_NAME: str = "nowhere-backend"
-    REDIS_DSN: str = Field("redis://localhost:6379/0", env="REDIS_DSN")
+    REDIS_DSN: str = Field(default="redis://localhost:6379/0", validation_alias="REDIS_DSN")
     POSTGRES_DSN: str = Field(
-        "postgresql+asyncpg://postgres:postgres@localhost:5432/nowhere",
-        env="POSTGRES_DSN",
+        default="postgresql+asyncpg://postgres:postgres@localhost:5432/nowhere",
+        validation_alias="POSTGRES_DSN",
     )
-    DEVICE_TOKEN_SECRET: str = Field("devsecret", env="DEVICE_TOKEN_SECRET")
-    REDIS_TTL_SECONDS: int = Field(60 * 60 * 6, env="REDIS_TTL_SECONDS")
+    DEVICE_TOKEN_SECRET: str = Field(default="devsecret", validation_alias="DEVICE_TOKEN_SECRET")
+    REDIS_TTL_SECONDS: int = Field(default=60 * 60 * 6, validation_alias="REDIS_TTL_SECONDS")
 
-    model_config = {"env_file": ".env"}
+    model_config = ConfigDict(env_file=".env")
 
 
 _settings = Settings()
