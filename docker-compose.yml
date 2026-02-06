@@ -1,0 +1,31 @@
+version: '3.8'
+services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: nowhere
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+  api:
+    build: ./backend
+    command: uvicorn backend.api.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app/backend
+    environment:
+      REDIS_DSN: redis://redis:6379/0
+      POSTGRES_DSN: postgresql://postgres:postgres@postgres:5432/nowhere
+      DEVICE_TOKEN_SECRET: devsecret
+    ports:
+      - "8000:8000"
+  proxy:
+    image: caddy:2
+    volumes:
+      - ./infra/proxy/Caddyfile:/etc/caddy/Caddyfile
+    ports:
+      - "80:80"
