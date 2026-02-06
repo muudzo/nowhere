@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 # Engine
 # We use echo=False to reduce noise, can be True for debugging
-engine = create_async_engine(settings.postgres_url, echo=False)
+engine = create_async_engine(settings.POSTGRES_DSN, echo=False)
 
 # Session Factory
 AsyncSessionLocal = async_sessionmaker(

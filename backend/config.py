@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "nowhere-backend"
     REDIS_DSN: str = Field("redis://localhost:6379/0", env="REDIS_DSN")
     POSTGRES_DSN: str = Field(
-        "postgresql://postgres:postgres@localhost:5432/nowhere",
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/nowhere",
         env="POSTGRES_DSN",
     )
     DEVICE_TOKEN_SECRET: str = Field("devsecret", env="DEVICE_TOKEN_SECRET")
@@ -23,3 +23,22 @@ def get_settings() -> Settings:
 
 
 settings = _settings
+# Backwards-compatible aliases for older code expecting different names
+def _ensure_compat_aliases(s: Settings):
+    # provide camel/other-style aliases used across the codebase
+    try:
+        setattr(s, "postgres_url", getattr(s, "POSTGRES_DSN"))
+    except Exception:
+        pass
+    try:
+        setattr(s, "redis_url", getattr(s, "REDIS_DSN"))
+    except Exception:
+        pass
+    try:
+        # older code expects `app_name` lowercased
+        setattr(s, "app_name", getattr(s, "APP_NAME"))
+    except Exception:
+        pass
+
+
+_ensure_compat_aliases(settings)

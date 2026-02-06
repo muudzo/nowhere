@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Determine Redis URL from settings or default
-    redis_url = getattr(settings, "redis_url", "redis://localhost:6379")
+    redis_url = getattr(settings, "REDIS_DSN", "redis://localhost:6379")
     await RedisClient.connect(redis_url)
     
     # Init DB (fire and log error if fail)
@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
     yield
     await RedisClient.disconnect()
 
-app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
+app = FastAPI(title=settings.APP_NAME, version="0.1.0", lifespan=lifespan)
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -79,4 +79,4 @@ async def spam_handler(request: Request, exc: SpamDetected):
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "app_name": settings.app_name}
+    return {"status": "ok", "app_name": settings.APP_NAME}
