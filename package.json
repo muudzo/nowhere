@@ -1,0 +1,10 @@
+{
+    "name": "nowhere-root",
+    "version": "1.0.0",
+    "scripts": {
+        "build": "npm --prefix app run build",
+        "start": "npm --prefix app start",
+        "test:backend": "cd backend && PYTHONPATH=. ../.venv/bin/python -m pytest"
+    },
+    "private": true
+}

@@ -1,16 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, Alert, Button } from 'react-native';
-import { getCurrentLocation, CoarseLocation } from '../utils/location';
-import { api } from '../utils/api';
-
-interface Intent {
-    id: string;
-    title: string;
-    emoji: string;
-    latitude: number;
-    longitude: number;
-    join_count: number;
-}
+import React from 'react';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, Button } from 'react-native';
+import { useIntents } from '../hooks/useIntents';
 
 interface Props {
     onCreate: () => void;
@@ -18,48 +8,7 @@ interface Props {
 }
 
 export default function HomeScreen({ onCreate, onChat }: Props) {
-    const [nearby, setNearby] = useState<Intent[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [location, setLocation] = useState<CoarseLocation | null>(null);
-    const [message, setMessage] = useState<string | null>(null);
-
-    const fetchData = async () => {
-        setLoading(true);
-        try {
-            const loc = await getCurrentLocation();
-            setLocation(loc);
-            if (loc) {
-                const res = await api.get('/intents/nearby', {
-                    params: { lat: loc.latitude, lon: loc.longitude }
-                });
-                setNearby(res.data.intents);
-                setMessage(res.data.message || null);
-            } else {
-                setMessage("We need your location to find the Nowhere.");
-            }
-        } catch (e) {
-            console.error(e);
-            Alert.alert("Error", "Could not fetch nearby events");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    const handleJoin = async (id: string) => {
-        try {
-            await api.post(`/intents/${id}/join`);
-            // Refresh logic - optimistic or fetch? Fetch for MVP is safer to get updated count.
-            fetchData();
-            Alert.alert("Joined!", "You are in.");
-        } catch (e) {
-            console.error(e);
-            Alert.alert("Error", "Could not join intent");
-        }
-    };
+    const { nearby, loading, message, fetchData, joinIntent } = useIntents();
 
     if (loading && !nearby.length) {
         return (
@@ -106,12 +55,7 @@ export default function HomeScreen({ onCreate, onChat }: Props) {
                             <Text style={styles.meta}>{item.join_count} joined</Text>
                         </View>
                         <View style={styles.actions}>
-                            <Button title="Join" onPress={() => handleJoin(item.id)} />
-                            {/* Show Enter if joined logic? For MVP, always show Enter, let it fail 403 or succeed? 
-                                 Or just a generic "Open" button?
-                                 "Temporary Chat Screen".
-                                 I'll just add the button.
-                              */}
+                            <Button title="Join" onPress={() => joinIntent(item.id)} />
                             <Button title="Chat" color="#666" onPress={() => onChat(item.id)} />
                         </View>
                     </View>
