@@ -2,6 +2,7 @@ from typing import List
 from ..core.models.intent import Intent
 from ..core.interfaces.repositories import IntentRepository
 from .ranking_service import RankingService
+from .clustering_service import ClusteringService
 
 
 class IntentQueryService:
@@ -29,5 +30,6 @@ class IntentQueryService:
         radius: float = 10.0,
     ) -> dict:
         """Get clustered view of intents in an area."""
-        clusters = await self.intent_repo.get_clusters(lat, lon, radius)
+        points = await self.intent_repo.get_geo_points(lat, lon, radius)
+        clusters = ClusteringService.cluster(points, radius)
         return {"clusters": clusters}
