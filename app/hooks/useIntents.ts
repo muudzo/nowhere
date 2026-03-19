@@ -1,7 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Alert } from 'react-native';
-import { api } from '../utils/api';
-import { getCurrentLocation, CoarseLocation } from '../utils/location';
+import { useEffect, useCallback } from 'react';
 
 import { Intent } from '../types/intent';
 import { useLocation } from './useLocation';
