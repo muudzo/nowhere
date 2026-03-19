@@ -39,12 +39,17 @@ async def create_intent(
 
 @router.get("/nearby")
 async def find_nearby_intents(
-    lat: float, 
-    lon: float, 
-    radius: float = 1.0, 
+    lat: float,
+    lon: float,
+    radius: float = 1.0,
     limit: int = 50,
-    query_service: IntentQueryService = Depends(get_intent_query_service)
+    query_service: IntentQueryService = Depends(get_intent_query_service),
 ):
+    if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+        raise HTTPException(status_code=422, detail="Invalid coordinates")
+    if not (0.1 <= radius <= 50):
+        raise HTTPException(status_code=422, detail="Radius must be between 0.1 and 50 km")
+    limit = min(limit, 100)
     intents = await query_service.get_nearby(lat, lon, radius, limit)
     
     response = NearbyResponse(intents=intents, count=len(intents))
