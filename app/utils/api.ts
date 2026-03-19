@@ -1,22 +1,12 @@
 import axios from 'axios';
-import { getOrCreateIdentity } from './identity';
-
-// Use local network IP for physical device testing, or localhost for simulator
-// In Expo, localhost often refers to the device itself.
-// Use 10.0.2.2 for Android Emulator loopback.
-// Use machine IP for physical device.
-// Hardcoding for now based on env or default.
-const BASE_URL = 'http://10.10.0.69:8000'; // User's LAN IP
+import { getOrCreateIdentity, getAccessToken } from './identity';
+import { API_URL } from './config';
 
 export const api = axios.create({
-    baseURL: BASE_URL,
+    baseURL: API_URL,
     withCredentials: true,
-    timeout: 10000, // 10s timeout
+    timeout: 10000,
 });
-
-import { getAccessToken } from './identity';
-
-// ... (existing imports/setup)
 
 api.interceptors.request.use(async (config) => {
     try {
@@ -24,14 +14,8 @@ api.interceptors.request.use(async (config) => {
         if (token) {
             config.headers['Authorization'] = `Bearer ${token}`;
         }
-
-        // Also send legacy header just in case or for smooth migration?
-        // Let's remove it to force JWT usage if we trust handshake.
-        // Or keep it as "X-Nowhere-Identity" if getAccessToken fails? 
-        // Logic: getAccessToken handles handshake. If it fails, token is null.
-
     } catch (e) {
-        // Fallback
+        // Fallback — request proceeds without auth
     }
     return config;
 });
