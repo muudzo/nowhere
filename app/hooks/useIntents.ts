@@ -4,6 +4,9 @@ import { api } from '../utils/api';
 import { getCurrentLocation, CoarseLocation } from '../utils/location';
 
 import { Intent } from '../types/intent';
+import { useLocation } from './useLocation';
+import { useNearbyIntents } from './useNearbyIntents';
+import { useJoinIntent } from './useJoinIntent';
 
 export function useIntents() {
     const [nearby, setNearby] = useState<Intent[]>([]);
