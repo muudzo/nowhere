@@ -26,6 +26,8 @@ from ..services.intent_query_service import IntentQueryService
 from ..services.metrics_event_handler import MetricsEventHandler
 from ..core.clock import Clock, SystemClock
 from ..core.event_bus import EventBus, InMemoryEventBus
+from ..services.ranking_service import RankingService
+from ..config import settings as app_settings
 from ..core.events import IntentCreated, IntentJoined, MessagePosted, IntentFlagged
 from ..infra.persistence.event_store import RedisEventStore
 
@@ -104,7 +106,11 @@ def get_intent_command_handler(
         spam_detector=spam_detector
     )
 
+def get_ranking_service() -> RankingService:
+    return RankingService(app_settings)
+
 def get_intent_query_service(
-    intent_repo: IntentRepository = Depends(get_intent_repo)
+    intent_repo: IntentRepository = Depends(get_intent_repo),
+    ranking_service: RankingService = Depends(get_ranking_service),
 ) -> IntentQueryService:
-    return IntentQueryService(intent_repo=intent_repo)
+    return IntentQueryService(intent_repo=intent_repo, ranking_service=ranking_service)

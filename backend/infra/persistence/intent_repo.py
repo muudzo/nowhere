@@ -11,8 +11,6 @@ from backend.core.models.intent import Intent
 from .lua_scripts import LuaScripts
 import json
 import logging
-from backend.core.models.ranking import calculate_score
-
 logger = logging.getLogger(__name__)
 
 INTENT_TTL_SECONDS = 24 * 60 * 60 # 24h
@@ -58,11 +56,13 @@ class IntentRepository:
         intent = intent.with_join_count(count)
         return intent
 
-    async def find_nearby(self, lat: float, lon: float, radius_km: float = 1.0, limit: int = 50) -> list[Intent]:
-        # Fetch 2x limit to allow for ranking and filtering
-        fetch_count = limit * 2
-        
-        # GEOSEARCH using reader
+    async def find_nearby(
+        self, lat: float, lon: float, radius_km: float = 1.0, limit: int = 50
+    ) -> list[tuple[Intent, float]]:
+        """
+        Find nearby intents with distances. Returns (intent, distance_km) tuples
+        for external ranking. Handles geo-search, hydration, and expired cleanup.
+        """
         results = await self.reader.geosearch(
             RedisKeys.intent_geo(),
             longitude=lon,
@@ -70,28 +70,23 @@ class IntentRepository:
             radius=radius_km,
             unit="km",
             sort="ASC",
-            count=100, 
-            withdist=True
+            count=limit * 2,
+            withdist=True,
         )
-        
+
         if not results:
             return []
 
-        # results is list of (member, distance) tuples
         member_ids = [m[0] for m in results]
-        distances = {m[0]: m[1] for m in results} 
+        distances = {m[0]: m[1] for m in results}
 
         keys = [RedisKeys.intent(mid) for mid in member_ids]
         json_list = await self.reader.mget(keys)
-        
+
         candidates = []
         expired_members = []
-        
-        # Pipeline for join counts (Reader pipeline)
-        # Note: If self.reader is same as self.redis and self.redis is pipeline, this breaks.
-        # Check if reader is actually a client.
+
         pipeline = self.reader.pipeline()
-        valid_indices = []
 
         for i, json_str in enumerate(json_list):
             if json_str:
@@ -101,35 +96,26 @@ class IntentRepository:
                     pipeline.scard(RedisKeys.intent_joins(intent.id))
             else:
                 expired_members.append(member_ids[i])
-        
+
         if not candidates:
-            # Clean up expired using Writer
             if expired_members:
                 await self.redis.zrem(RedisKeys.intent_geo(), *expired_members)
             return []
 
-        # Execute pipeline to get counts
         counts = await pipeline.execute()
 
-        scored_intents = []
-        now = datetime.now(timezone.utc)
-        
+        result_pairs = []
         for intent, count in zip(candidates, counts):
             intent = intent.with_join_count(count)
-            
             dist = distances.get(str(intent.id), radius_km)
             if not intent.is_visible(dist):
                 continue
+            result_pairs.append((intent, dist))
 
-            total_score = calculate_score(intent, dist, radius_km, now)
-            scored_intents.append((total_score, intent))
-            
-        # Cleanup expired using Writer
         if expired_members:
-             await self.redis.zrem(RedisKeys.intent_geo(), *expired_members)
-             
-        scored_intents.sort(key=lambda x: x[0], reverse=True)
-        return [item[1] for item in scored_intents[:limit]]
+            await self.redis.zrem(RedisKeys.intent_geo(), *expired_members)
+
+        return result_pairs
 
     async def flag_intent(self, intent_id: UUID) -> int:
         key = RedisKeys.intent(intent_id)
