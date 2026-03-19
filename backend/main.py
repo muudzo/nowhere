@@ -51,12 +51,15 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to connect to Redis: {e}")
         # We don't crash here to allow 'partial' start if user wants debugging
     
-    # Init DB
-    try:
-        await init_db()
-        logger.info("Database initialized.")
-    except Exception as e:
-        logger.error(f"Failed to initialize Database: {e}")
+    # Init DB (optional — only if Postgres is enabled for metrics)
+    if settings.POSTGRES_ENABLED:
+        try:
+            await init_db()
+            logger.info("Database initialized.")
+        except Exception as e:
+            logger.error(f"Failed to initialize Database: {e}")
+    else:
+        logger.info("PostgreSQL disabled — metrics stored in Redis only.")
 
     yield
     await RedisClient.disconnect()

@@ -9,6 +9,7 @@ class Settings(BaseSettings):
         default="sqlite+aiosqlite:///./nowhere.db",
         validation_alias="POSTGRES_DSN",
     )
+    POSTGRES_ENABLED: bool = Field(default=False, validation_alias="POSTGRES_ENABLED")
     DEVICE_TOKEN_SECRET: str = Field(default="devsecret", validation_alias="DEVICE_TOKEN_SECRET")
     REDIS_TTL_SECONDS: int = Field(default=60 * 60 * 6, validation_alias="REDIS_TTL_SECONDS")
     
