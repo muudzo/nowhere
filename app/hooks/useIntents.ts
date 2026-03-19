@@ -3,14 +3,7 @@ import { Alert } from 'react-native';
 import { api } from '../utils/api';
 import { getCurrentLocation, CoarseLocation } from '../utils/location';
 
-export interface Intent {
-    id: string;
-    title: string;
-    emoji: string;
-    latitude: number;
-    longitude: number;
-    join_count: number;
-}
+import { Intent } from '../types/intent';
 
 export function useIntents() {
     const [nearby, setNearby] = useState<Intent[]>([]);
