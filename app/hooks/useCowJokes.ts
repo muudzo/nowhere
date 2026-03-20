@@ -8,3 +8,4 @@ export const useCowJokes = () => {
     "What do you get from a pampered cow? Spoiled milk.",
     "Where do cows go for entertainment? The moo-vies.",
     "What do you call a cow in an earthquake? A milkshake.",
+    "Why did the cow cross the road? To get to the udder side.",
