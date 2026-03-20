@@ -13,3 +13,4 @@ export const useCowJokes = () => {
     "How do farmers count their cows? With a cow-culator.",
     "Why do cows have hooves instead of feet? Because they lactose.",
     "What do you call a magical cow? Moo-dini.",
+    "What do you call a cow that won't give milk? An udder failure.",
