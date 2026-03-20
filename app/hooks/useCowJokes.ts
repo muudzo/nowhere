@@ -10,3 +10,4 @@ export const useCowJokes = () => {
     "What do you call a cow in an earthquake? A milkshake.",
     "Why did the cow cross the road? To get to the udder side.",
     "What do you call a sleeping cow? A bull-dozer.",
+    "How do farmers count their cows? With a cow-culator.",
