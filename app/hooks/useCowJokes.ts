@@ -23,3 +23,9 @@ export const useCowJokes = () => {
     "What sound do you hear when you drop a bomb on a cow? Cow-boom!",
     "Why did the blonde buy a brown cow? To get chocolate milk.",
     "What is a cow's favorite color? Maroon.",
+  ]);
+
+  const getRandomJoke = () => jokes[Math.floor(Math.random() * jokes.length)];
+
+  return { jokes, getRandomJoke };
+};
