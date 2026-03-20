@@ -21,3 +21,4 @@ export const useCowJokes = () => {
     "What do you call a cow that eats grass? A lawn moo-er.",
     "What do cows read at the breakfast table? The moo-spaper.",
     "What sound do you hear when you drop a bomb on a cow? Cow-boom!",
+    "Why did the blonde buy a brown cow? To get chocolate milk.",
