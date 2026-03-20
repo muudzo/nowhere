@@ -19,3 +19,4 @@ export const useCowJokes = () => {
     "Why did the cow jump over the moon? Because the farmer had cold hands.",
     "Where do Russian cows come from? Mos-cow.",
     "What do you call a cow that eats grass? A lawn moo-er.",
+    "What do cows read at the breakfast table? The moo-spaper.",
