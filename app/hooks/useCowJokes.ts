@@ -17,3 +17,4 @@ export const useCowJokes = () => {
     "What do you call a cow playing a guitar? A moo-sician.",
     "What did the cow say to the calf? It's pasture bedtime.",
     "Why did the cow jump over the moon? Because the farmer had cold hands.",
+    "Where do Russian cows come from? Mos-cow.",
