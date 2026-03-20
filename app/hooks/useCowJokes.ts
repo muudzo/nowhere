@@ -14,3 +14,4 @@ export const useCowJokes = () => {
     "Why do cows have hooves instead of feet? Because they lactose.",
     "What do you call a magical cow? Moo-dini.",
     "What do you call a cow that won't give milk? An udder failure.",
+    "What do you call a cow playing a guitar? A moo-sician.",
