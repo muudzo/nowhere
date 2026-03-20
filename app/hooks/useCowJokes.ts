@@ -11,3 +11,4 @@ export const useCowJokes = () => {
     "Why did the cow cross the road? To get to the udder side.",
     "What do you call a sleeping cow? A bull-dozer.",
     "How do farmers count their cows? With a cow-culator.",
+    "Why do cows have hooves instead of feet? Because they lactose.",
