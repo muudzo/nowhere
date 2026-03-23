@@ -8,6 +8,11 @@ export interface LoggerConfig {
 export class Logger {
   private config: LoggerConfig;
 
+  private getTimestamp(): string {
+    return new Date().toISOString();
+  }
+: LoggerConfig;
+
   constructor(config: LoggerConfig = { minLevel: 'DEBUG' }) {
     this.config = config;
   }
