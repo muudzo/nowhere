@@ -11,4 +11,11 @@ export class Logger {
   constructor(config: LoggerConfig = { minLevel: 'DEBUG' }) {
     this.config = config;
   }
+
+  debug(message: string, data?: any) {
+    if (this.config.minLevel === 'DEBUG') {
+      console.debug('[DEBUG]', message, data || '');
+    }
+  }
+}
 }
