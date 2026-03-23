@@ -31,5 +31,9 @@ export class Logger {
       console.warn('[WARN]', message, data || '');
     }
   }
+
+  error(message: string, data?: any) {
+    console.error('[ERROR]', message, data || '');
+  }
 }
 }
