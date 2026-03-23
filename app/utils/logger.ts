@@ -66,3 +66,5 @@ export class Logger {
     return this.history;
   }
 }
+
+export const systemLogger = new Logger({ globalTags: ['SYSTEM'] });
