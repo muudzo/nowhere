@@ -2,6 +2,7 @@
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 
 export interface LoggerConfig {
+  globalTags?: string[];
   enabled?: boolean;
   minLevel?: LogLevel;
 }
@@ -10,7 +11,8 @@ export class Logger {
   private config: LoggerConfig;
 
   private getTimestamp(): string {
-    return new Date().toISOString();
+    const tags = this.config.globalTags ? ` [${this.config.globalTags.join(',')}]` : '';
+    return new Date().toISOString() + tags;.toISOString();
   }
 : LoggerConfig;
 
