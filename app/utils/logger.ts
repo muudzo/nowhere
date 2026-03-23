@@ -17,5 +17,12 @@ export class Logger {
       console.debug('[DEBUG]', message, data || '');
     }
   }
+
+  info(message: string, data?: any) {
+    const levels = ['DEBUG', 'INFO'];
+    if (levels.includes(this.config.minLevel!)) {
+      console.info('[INFO]', message, data || '');
+    }
+  }
 }
 }
