@@ -24,5 +24,12 @@ export class Logger {
       console.info('[INFO]', message, data || '');
     }
   }
+
+  warn(message: string, data?: any) {
+    const levels = ['DEBUG', 'INFO', 'WARN'];
+    if (levels.includes(this.config.minLevel!)) {
+      console.warn('[WARN]', message, data || '');
+    }
+  }
 }
 }
