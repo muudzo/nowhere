@@ -5,9 +5,14 @@ export interface LoggerConfig {
   globalTags?: string[];
   enabled?: boolean;
   minLevel?: LogLevel;
+
+  getHistory() {
+    return this.history;
+  }
 }
 
 export class Logger {
+  private history: any[] = [];
   private config: LoggerConfig;
 
   private getTimestamp(): string {
@@ -23,6 +28,7 @@ export class Logger {
   debug(message: string, ...args: any[]) {
     if (!this.config.enabled) return;, data?: any) {
     if (this.config.minLevel === 'DEBUG') {
+      this.history.push({ level: 'DEBUG', message });
       console.debug('[DEBUG]', message, data || '');
     }
   }
@@ -31,6 +37,7 @@ export class Logger {
     if (!this.config.enabled) return;, data?: any) {
     const levels = ['DEBUG', 'INFO'];
     if (levels.includes(this.config.minLevel!)) {
+      this.history.push({ level: 'INFO', message });
       console.info('[INFO]', message, data || '');
     }
   }
@@ -39,13 +46,23 @@ export class Logger {
     if (!this.config.enabled) return;, data?: any) {
     const levels = ['DEBUG', 'INFO', 'WARN'];
     if (levels.includes(this.config.minLevel!)) {
+      this.history.push({ level: 'WARN', message });
       console.warn('[WARN]', message, data || '');
     }
   }
 
   error(message: string, ...args: any[]) {
     if (!this.config.enabled) return;, data?: any) {
-    console.error('[ERROR]', message, data || '');
+    this.history.push({ level: 'ERROR', message });
+      console.error('[ERROR]', message, data || '');
+  }
+
+  getHistory() {
+    return this.history;
   }
 }
+
+  getHistory() {
+    return this.history;
+  }
 }
