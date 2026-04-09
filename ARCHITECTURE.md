@@ -1,216 +1,364 @@
-# Nowhere - Architecture & Improvement Points
+# Nowhere — Architecture Document
 
-## System Architecture
-
-```
-                    +------------------+
-                    |   React Native   |
-                    |   (Expo / TS)    |
-                    +--------+---------+
-                             |
-                     HTTPS/REST + WS
-                             |
-                    +--------+---------+
-                    |   Caddy Proxy    |
-                    | (IP rate limiting)|
-                    +--------+---------+
-                             |
-                    +--------+---------+
-                    |  FastAPI (async) |
-                    |  Python 3.13     |
-                    +--------+---------+
-                             |
-                    +--------+---------+
-                    |      Redis 7     |
-                    | (primary store + |
-                    |  event stream)   |
-                    +------------------+
-                    |   PostgreSQL 15  |
-                    |  (optional, off  |
-                    |   by default)    |
-                    +------------------+
-```
-
-## Backend Architecture (Domain-Driven Design)
-
-The backend follows a layered DDD + CQRS approach:
-
-```
-API Layer (api/)
-  ├── intents.py          FastAPI route handlers
-  ├── auth.py             JWT handshake
-  ├── ws.py               WebSocket endpoint + ConnectionManager
-  ├── metrics.py          /metrics operational endpoint
-  ├── schemas.py          Pydantic models (with input validation & sanitization)
-  ├── message_schemas.py  Message schemas (with HTML sanitization)
-  ├── deps.py             Dependency injection
-  └── limiter.py          Per-user rate limiting
-
-Service Layer (services/)
-  ├── intent_command_handler.py   Write path (commands)
-  ├── intent_query_service.py     Read path (queries)
-  ├── ranking_service.py          Configurable intent ranking
-  ├── clustering_service.py       Zoom-aware geo clustering
-  └── metrics_event_handler.py    Async event consumers
-
-Domain Layer (core/)
-  ├── models/intent.py    Aggregate root + value objects
-  ├── models/ranking.py   Score calculation (configurable weights)
-  ├── commands.py         Command definitions
-  ├── events.py           Domain events
-  ├── event_bus.py        Pub/sub dispatch (with optional event store)
-  ├── unit_of_work.py     Transaction protocol
-  ├── logging.py          Structured JSON logging + correlation IDs
-  └── clock.py            Time abstraction (testable)
-
-Infrastructure Layer (infra/)
-  └── persistence/
-      ├── intent_repo.py  Geo-indexed intent storage (data access only)
-      ├── join_repo.py    Atomic join operations (Lua)
-      ├── message_repo.py Ephemeral message lists
-      ├── event_store.py  Redis Stream event persistence
-      ├── metrics_repo.py Counter-based metrics
-      ├── unit_of_work.py Redis pipeline transactions
-      ├── keys.py         Redis key schema
-      └── lua_scripts.py  Atomic Redis operations
-```
-
-### Key Patterns
-
-- **CQRS**: Commands (create, join, message) separated from queries (nearby, clusters)
-- **Unit of Work**: Redis pipeline wraps all writes in a single atomic transaction; domain events collected and published after commit
-- **Domain Events**: `IntentCreated`, `IntentJoined`, `MessagePosted`, `IntentFlagged` -- persisted to Redis Stream, then dispatched to handlers
-- **Event Persistence**: All domain events written to `nowhere:events` Redis Stream (capped at 10k entries) before handler dispatch, enabling replay and auditing
-- **Geo-Spatial Indexing**: Redis `GEOADD`/`GEOSEARCH` for proximity queries
-- **Lua Scripts**: Atomic join operations (check-then-write) to prevent race conditions
-- **Configurable Ranking**: `score = W_DIST * dist + W_FRESH * fresh + W_POP * pop` -- weights configurable via env vars (`RANKING_W_DIST`, `RANKING_W_FRESH`, `RANKING_W_POP`)
-- **WebSocket + Polling Fallback**: Real-time message delivery via WebSocket (`/ws/intents/{id}/messages`) with automatic 3s polling fallback
-- **Structured Logging**: JSON-formatted logs with request-scoped correlation IDs (`request_id` context var) propagated through all log entries
-- **Input Validation**: Coordinate bounds (-90/90, -180/180), HTML sanitization on all user text, radius capping
-
-### Frontend Architecture
-
-```
-App.tsx (react-navigation NativeStackNavigator)
-  ├── HomeScreen        FlatList of nearby intents
-  ├── CreateScreen      Intent creation form (modal presentation)
-  └── ChatScreen        WebSocket real-time + polling fallback
-
-hooks/
-  ├── useIntents.ts        Orchestrator (location + fetch + join)
-  ├── useLocation.ts       Permission + coordinate fetching
-  ├── useNearbyIntents.ts  API data fetching (retains stale data on error)
-  └── useJoinIntent.ts     Join action
-
-utils/
-  ├── config.ts         Env-based API URL (NOWHERE_API_URL / platform defaults)
-  ├── api.ts            Axios instance + JWT interceptor + error interceptor
-  ├── identity.ts       Device UUID + token management
-  ├── location.ts       expo-location wrapper
-  └── network.ts        useNetworkStatus hook (online/offline detection)
-
-i18n/
-  ├── index.ts          t() function with {{interpolation}} support
-  └── en.ts             English string catalog
-```
-
-### Authentication Flow
-
-```
-Device boots → generate UUID → store in SecureStore
-  → POST /auth/handshake { anon_id } → receive JWT
-  → attach JWT to all requests via axios interceptor
-  → rotate identity every 30 days
-```
-
-No email, no password, no registration. Fully anonymous, device-scoped.
-
-### Redis Data Model
-
-| Key Pattern | Type | Purpose |
-|---|---|---|
-| `intent:{id}` | Hash | Intent data (title, emoji, lat, lon, etc.) |
-| `intents:geo` | Sorted Set (Geo) | Geospatial index for proximity search |
-| `intent:{id}:joins` | Set | User IDs who joined |
-| `intent:{id}:messages` | List | Capped at 100 messages |
-| `intent:{id}:flags` | Set | User IDs who flagged |
-| `user:{id}:intents` | Set | Intents created by user |
-| `ratelimit:{action}:{user_id}` | String (counter) | Rate limit tracking |
-| `nowhere:events` | Stream | Persisted domain events (capped at 10k) |
-| `nowhere:counter:{name}` | String (counter) | Operational metrics counters |
-
-All intent-related keys have TTL = 24 hours (matching ephemeral lifecycle).
+> Ephemeral, location-scoped, anonymous coordination platform.
+> Everything is transient. 24-hour TTL. No accounts. No history.
 
 ---
 
-## Improvement Points -- Resolution Log
+## 1. System Overview
 
-All 15 improvements identified in the initial assessment have been implemented:
+```
+                 ┌─────────────────────────────┐
+                 │     React Native (Expo)      │
+                 │     iOS / Android / Web      │
+                 └──────────────┬───────────────┘
+                                │
+                    HTTPS (REST + WebSocket)
+                                │
+                 ┌──────────────▼───────────────┐
+                 │        Caddy Proxy            │
+                 │   Auto-TLS / HSTS / Headers   │
+                 │      Port 80 → 443            │
+                 └──────────────┬───────────────┘
+                                │
+                 ┌──────────────▼───────────────┐
+                 │     FastAPI (Python 3.13)     │
+                 │    Auth │ API │ WebSocket     │
+                 └──┬───────────────────────┬───┘
+                    │                       │
+         ┌──────────▼──────────┐  ┌─────────▼─────────┐
+         │   Redis 7 (Primary) │  │ PostgreSQL 15 (Opt)│
+         │  Geo │ TTL │ Stream │  │   Aggregate Metrics│
+         └─────────────────────┘  └────────────────────┘
+```
 
-### Critical -- RESOLVED
+**Stack:** FastAPI + Redis + React Native (Expo) + Caddy + Docker Compose
 
-| # | Issue | Resolution | Commit |
-|---|-------|------------|--------|
-| 1 | Hardcoded LAN IP (`10.10.0.69`) | Extracted to `config.ts` with env var (`NOWHERE_API_URL`), platform-aware dev defaults, and prod fallback | `6ef57bd` |
-| 2 | No CI/CD pipeline | GitHub Actions with parallel jobs: backend tests (Redis service), linting (ruff), frontend typecheck, Docker build, stack integration | `f8fb9d7` |
-
-### High Priority -- RESOLVED
-
-| # | Issue | Resolution | Commit |
-|---|-------|------------|--------|
-| 3 | Polling-based chat (3s interval) | WebSocket endpoint (`/ws/intents/{id}/messages`) with ConnectionManager broadcast; frontend auto-falls back to polling on WS failure | `a316f18` |
-| 4 | `useState` screen routing | `@react-navigation/native-stack` with typed `RootStackParamList`; modal presentation for Create; navigation props replace callbacks | `8933851` |
-| 5 | Raw error alerts, no offline state | Axios response interceptor with `userMessage`; `useNetworkStatus` hook; stale data retention on fetch failure | `8471d81` |
-
-### Medium Priority -- RESOLVED
-
-| # | Issue | Resolution | Commit |
-|---|-------|------------|--------|
-| 6 | Fire-and-forget events | `RedisEventStore` persists to `nowhere:events` Stream (capped 10k) before handler dispatch; `read_since()` for replay | `326f292` |
-| 7 | Magic ranking weights in repo | `RankingService` with env-configurable weights (`RANKING_W_DIST/FRESH/POP`); extracted from repository | `20f77e2` |
-| 8 | Repository does ranking + clustering | `ClusteringService` extracted; repo returns raw `(intent, distance)` pairs and `get_geo_points()` | `5adab85` |
-| 9 | Integration tests skipped | Fixed with `httpx.ASGITransport`; removed all `@pytest.mark.skip`; tests exercise full request lifecycle | `b0afc34` |
-| 10 | No structured logging/metrics | `request_id` context var in all JSON logs; `/metrics` endpoint with Redis counters + event stream stats; client X-Request-ID passthrough | `4ef7baf` |
-| 11 | No input validation/sanitization | `field_validator` on schemas: coordinate bounds, HTML escape, length caps; IP rate limiting in Caddyfile; radius/limit capping on nearby endpoint | `0eee534` |
-
-### Low Priority -- RESOLVED
-
-| # | Issue | Resolution | Commit |
-|---|-------|------------|--------|
-| 12 | PostgreSQL running idle | `POSTGRES_ENABLED` flag (default: false); DB init skipped when disabled; documented as optional analytics layer | `2e9ef72` |
-| 13 | Fixed-precision clustering | `ClusteringService` accepts `?zoom=` param mapped to precision (1-4 decimals); falls back to radius-based precision | `221d2c4` |
-| 14 | No accessibility support | `accessibilityLabel` and `accessibilityHint` on all interactive elements across all screens; intent cards announce full context | `82b52fd` |
-| 15 | Hardcoded English strings | `i18n/` module with `t()` function, `{{interpolation}}`, English catalog covering all screens and errors | `ea6aa0c` |
+**Key Principle:** All user data expires in 24 hours. No PII in metrics. Anonymous by design.
 
 ---
 
-## Remaining Opportunities (Future Work)
+## 2. Directory Structure
 
-These are not blockers but would further improve the system:
-
-- **E2E tests**: Add Detox/Maestro for mobile E2E testing
-- **OpenTelemetry**: Full distributed tracing (currently only correlation IDs)
-- **Redis Cluster**: High availability for production at scale
-- **CSRF tokens**: For web clients making state-changing requests
-- **Consumer groups**: Redis Stream consumer groups for reliable event processing with retry
-- **Client-side clustering**: Use `supercluster` for smoother map interactions
-- **Push notifications**: Notify users when someone joins their intent
-- **WCAG AA audit**: Contrast ratios and focus management beyond basic labels
+```
+nowhere/
+├── app/                            # React Native / Expo frontend
+│   ├── App.tsx                     # Root navigator + ErrorBoundary
+│   ├── screens/
+│   │   ├── HomeScreen.tsx          # Nearby intents list
+│   │   ├── CreateScreen.tsx        # New intent modal
+│   │   └── ChatScreen.tsx          # Real-time messaging (WS + polling)
+│   ├── hooks/
+│   │   ├── useIntents.ts           # Orchestrator: location → fetch → join
+│   │   ├── useLocation.ts          # expo-location wrapper
+│   │   ├── useNearbyIntents.ts     # API fetch + stale data retention
+│   │   └── useJoinIntent.ts        # Join action + UUID validation
+│   ├── utils/
+│   │   ├── config.ts               # API_URL resolution (env/platform)
+│   │   ├── api.ts                  # Axios + JWT interceptor + 401 retry
+│   │   ├── identity.ts             # SecureStore UUID + JWT + expiry check
+│   │   ├── location.ts             # GPS with 3dp privacy rounding
+│   │   ├── validation.ts           # UUID regex + display sanitizer
+│   │   └── logger.ts               # Safe logging (no tokens in prod)
+│   ├── types/intent.ts             # Intent interface
+│   └── i18n/                       # Internationalization (English)
+│
+├── backend/                        # FastAPI Python backend
+│   ├── main.py                     # App setup, middleware, lifespan
+│   ├── config.py                   # Settings + secret validation
+│   ├── spam.py                     # Heuristic spam detection
+│   ├── api/                        # HTTP handlers (thin)
+│   │   ├── intents.py              # CRUD + nearby + clusters + flag
+│   │   ├── auth.py                 # Handshake + GDPR erasure
+│   │   ├── ws.py                   # WebSocket + ConnectionManager
+│   │   ├── metrics.py              # /metrics (localhost only)
+│   │   ├── limiter.py              # Per-user rate limiting
+│   │   ├── schemas.py              # Request/response validation
+│   │   ├── deps.py                 # Dependency injection
+│   │   └── debug.py                # Seed endpoint (DEBUG only)
+│   ├── auth/
+│   │   ├── jwt.py                  # JWT create/decode (HS256, iss/aud)
+│   │   └── middleware.py           # Bearer auth + ephemeral fallback
+│   ├── core/                       # Domain layer (DDD)
+│   │   ├── models/
+│   │   │   ├── intent.py           # Aggregate root (visibility, flags)
+│   │   │   ├── message.py          # Message (HTML-escaped content)
+│   │   │   └── ranking.py          # Scoring formula
+│   │   ├── commands.py             # Write operations
+│   │   ├── events.py               # Domain events (no GPS)
+│   │   ├── event_bus.py            # Parallel async dispatch
+│   │   ├── unit_of_work.py         # Transaction protocol
+│   │   └── exceptions.py           # Domain errors
+│   ├── services/
+│   │   ├── intent_command_handler.py  # Write path (UoW)
+│   │   ├── intent_query_service.py    # Read path (ranking)
+│   │   ├── ranking_service.py         # Configurable scoring
+│   │   ├── clustering_service.py      # Zoom-aware geo clustering
+│   │   └── metrics_event_handler.py   # Event → aggregate metrics
+│   ├── infra/persistence/
+│   │   ├── redis.py                # Connection pool + retry + timeouts
+│   │   ├── intent_repo.py          # Geo search + TTL + Lua scripts
+│   │   ├── join_repo.py            # Atomic Lua join
+│   │   ├── message_repo.py         # Capped list + TTL refresh
+│   │   ├── event_store.py          # Redis Stream (capped 10k)
+│   │   ├── metrics_repo.py         # Postgres (no PII)
+│   │   ├── keys.py                 # Redis key schema
+│   │   ├── lua_scripts.py          # ATOMIC_FLAG, SAVE_JOIN
+│   │   ├── unit_of_work.py         # Redis pipeline transactions
+│   │   └── db.py                   # SQLAlchemy async engine
+│   └── security/device_tokens.py   # HMAC device token signing
+│
+├── infra/proxy/Caddyfile           # Reverse proxy + TLS + headers
+├── docker-compose.yml              # Full stack (4 services, 2 networks)
+├── .env.example                    # Required env vars template
+├── .dockerignore                   # Slim Docker builds
+└── .github/workflows/ci.yml       # CI pipeline
+```
 
 ---
 
-## Architecture Decision Records
+## 3. Architecture Patterns
 
-| Decision | Rationale |
-|---|---|
-| Redis as primary store | Ephemeral data (24hr TTL) fits Redis naturally. Geo-indexing built-in. Sub-ms reads. |
-| Redis Streams for events | Avoids adding a separate event store (Kafka, EventStoreDB). Events are ephemeral like the data. |
-| Anonymous identity | Removes signup friction. Aligns with "no social graph" philosophy. |
-| CQRS with event persistence | Commands and queries separated. Events persisted for auditing but not used as source of truth (not full event sourcing). |
-| WebSocket + polling fallback | Real-time UX when possible, graceful degradation on unreliable connections. |
-| PostgreSQL optional | Redis handles all primary needs. Postgres available for analytics if needed, but not required. |
-| Rate limiting at two layers | Per-user in application (fine-grained), per-IP in Caddy (DDoS protection). |
-| Caddy as reverse proxy | Automatic HTTPS, simple config, IP rate limiting. Suitable for single-server deployment. |
-| react-navigation | Standard Expo-compatible navigation. Deep linking, gestures, screen lifecycle. |
-| Expo for mobile | Cross-platform with minimal native code. Fast iteration for MVP. |
-| i18n foundation early | String extraction is cheaper now than after more screens are added. |
+### CQRS (Command Query Responsibility Segregation)
+- **Write path:** API → Command → IntentCommandHandler → UoW (Redis pipeline) → Event Bus
+- **Read path:** API → IntentQueryService → IntentRepository (Redis reader) → RankingService
+
+### Unit of Work
+- Redis pipeline wraps all writes atomically
+- Events collected during transaction, published after commit
+- Rollback resets pipeline and discards events
+
+### Domain-Driven Design
+- **Aggregate Root:** Intent (owns joins, messages, flags)
+- **Value Objects:** Message, Command, DomainEvent
+- **Repository Pattern:** IntentRepository, JoinRepository, MessageRepository
+- **Domain Events:** IntentCreated, IntentJoined, MessagePosted, IntentFlagged
+
+### Event Sourcing (Lite)
+- Domain events persisted to Redis Stream (`nowhere:events`, capped 10k)
+- Event handlers dispatch in parallel via `asyncio.gather`
+- Metrics handler consumes events → writes aggregate-only Postgres rows
+
+---
+
+## 4. Data Model (Redis)
+
+| Key Pattern | Type | TTL | Purpose |
+|---|---|---|---|
+| `intent:{id}` | String (JSON) | 24h | Intent data |
+| `intents:geo` | Sorted Set (Geo) | — | Proximity search index |
+| `intent:{id}:joins` | Set | 24h | User IDs who joined |
+| `intent:{id}:msgs` | List (capped 100) | 24h | Chat messages |
+| `intent:{id}:flaggers` | Set | 24h | User IDs who flagged |
+| `user:{id}:intents` | Set | 24h | Intents created by user |
+| `identity:{id}:limits:{action}` | Counter | 1h | Rate limit windows |
+| `spam:{id}:last_hash` | String | 5m | Content dedup hash |
+| `nowhere:events` | Stream (10k cap) | — | Domain event log |
+| `nowhere:counter:{name}` | Counter | — | Operational metrics |
+| `sys:expiry_queue` | Sorted Set | — | Scheduled cleanup |
+
+---
+
+## 5. API Surface
+
+### REST Endpoints
+
+| Method | Path | Auth | Rate Limit | Purpose |
+|--------|------|------|------------|---------|
+| `POST` | `/auth/handshake` | None | — | Exchange anon_id for JWT |
+| `DELETE` | `/auth/me/data` | JWT | — | GDPR erasure |
+| `POST` | `/intents/` | JWT | 5/hr | Create intent |
+| `GET` | `/intents/nearby` | Any | — | Proximity search |
+| `GET` | `/intents/clusters` | Any | — | Zoom-aware clustering |
+| `POST` | `/intents/{id}/join` | JWT | 20/hr | Join intent |
+| `POST` | `/intents/{id}/messages` | JWT | 100/hr | Post message |
+| `POST` | `/intents/{id}/flag` | JWT | 5/hr | Flag intent (deduped) |
+| `GET` | `/health` | None | — | Redis connectivity check |
+| `GET` | `/metrics` | Localhost | — | Operational counters |
+
+### WebSocket
+
+| Path | Auth | Protocol |
+|------|------|----------|
+| `/ws/intents/{id}/messages?token={JWT}` | JWT query param | Ping/pong keepalive 30s, timeout 60s |
+
+---
+
+## 6. Authentication Flow
+
+```
+Device Boot → getOrCreateIdentity() → UUID (SecureStore / localStorage)
+         │
+         ├─→ POST /auth/handshake {anon_id: UUID}
+         │         │
+         │         └─→ JWT {sub: UUID, iss: "nowhere-backend", aud: "nowhere-app", exp: +7d}
+         │
+         └─→ Axios interceptor attaches "Authorization: Bearer {JWT}" to all requests
+              │
+              └─→ AuthMiddleware extracts sub, sets request.state.user_id
+                   │
+                   └─→ Every 30 days: identity rotates (new UUID, new JWT)
+```
+
+**No email. No password. No registration. JWT-only trust.**
+
+---
+
+## 7. Security Architecture
+
+### Middleware Stack (order matters)
+
+1. **SecurityHeadersMiddleware** — CSP, HSTS, X-Frame-Options, Permissions-Policy
+2. **CORSMiddleware** — Restricted to `ALLOWED_ORIGINS`
+3. **AuthMiddleware** — JWT verification, ephemeral fallback
+4. **Body Size Limit** — 1MB max request body
+5. **Request ID** — Correlation ID propagation
+
+### Defense-in-Depth
+
+| Layer | Protection |
+|-------|-----------|
+| **Caddy** | Auto-TLS, HSTS, security headers, body size limit |
+| **FastAPI** | CSP, CORS, auth, rate limiting, input validation |
+| **Domain** | HTML escape, spam detection, flag dedup, membership checks |
+| **Redis** | Password auth, connection pooling, Lua atomicity |
+| **Docker** | Non-root user, read-only FS, network isolation, resource limits |
+| **Client** | UUID validation, sessionStorage for JWT, HTTPS enforcement, safe logging |
+
+### Data Privacy (GDPR)
+
+- No PII in metrics (aggregate geohash only)
+- No GPS in domain events
+- All user data expires in 24h (Redis TTL)
+- `DELETE /auth/me/data` — cascading erasure across all keys
+- Coordinates rounded to 3dp (~110m) at model level
+- No third-party analytics or tracking
+
+---
+
+## 8. Infrastructure
+
+### Docker Compose Topology
+
+```
+                    ┌─────────────┐
+                    │   proxy     │ ← Ports 80, 443
+                    │  (Caddy 2)  │
+                    └──────┬──────┘
+                           │ frontend network
+                    ┌──────▼──────┐
+                    │    api      │ ← Health check: /health
+                    │  (FastAPI)  │
+                    └──┬──────┬───┘
+                       │      │ backend network
+              ┌────────▼──┐ ┌─▼────────┐
+              │   redis   │ │ postgres  │
+              │  (Redis 7)│ │ (PG 15)   │
+              └───────────┘ └───────────┘
+```
+
+| Service | Memory | CPU | Health Check | Restart |
+|---------|--------|-----|-------------|---------|
+| redis | 256M | 0.5 | `redis-cli ping` | unless-stopped |
+| postgres | 512M | 1.0 | `pg_isready` | unless-stopped |
+| api | 512M | 1.0 | `curl /health` | unless-stopped |
+| proxy | 128M | 0.5 | depends_on api | unless-stopped |
+
+### Persistence
+
+| Volume | Service | Purpose |
+|--------|---------|---------|
+| `redis_data` | redis | AOF persistence (appendonly yes) |
+| `pgdata` | postgres | Database files |
+| `caddy_data` | proxy | TLS certificates |
+| `caddy_config` | proxy | Caddy configuration state |
+
+---
+
+## 9. Frontend Architecture
+
+### Navigation
+
+```
+NavigationContainer
+  └─ NativeStackNavigator
+       ├─ Home (default)      ← FlatList of nearby intents
+       ├─ Create (modal)      ← Title + emoji form
+       └─ Chat (push)         ← WebSocket + polling messages
+```
+
+### Hook Composition
+
+```
+useIntents (orchestrator)
+  ├─ useLocation()          → { location, fetchLocation }
+  ├─ useNearbyIntents()     → { nearby, loading, message, fetchIntents }
+  └─ useJoinIntent()        → { joinIntent }
+```
+
+### Data Flow
+
+```
+App Launch
+  → useLocation.fetchLocation() → expo-location (3dp rounding)
+  → useNearbyIntents.fetchIntents(location) → GET /intents/nearby
+  → Display in FlatList
+
+User Creates Intent
+  → CreateScreen → getCurrentLocation() → POST /intents/
+  → Navigate back → auto-refresh
+
+User Joins Intent
+  → useJoinIntent → POST /intents/{id}/join → Alert → refresh
+
+User Opens Chat
+  → ChatScreen → validate UUID → getAccessToken()
+  → WebSocket connect with JWT query param
+  → Fallback: polling every 3s on WS failure
+```
+
+---
+
+## 10. Scoring & Ranking
+
+```
+score = (W_DIST × distance_score) + (W_FRESH × freshness_score) + (W_POP × popularity_score)
+
+distance_score  = 1 - (distance_km / radius_km)     # closer = higher
+freshness_score = 1 - (age_seconds / decay_seconds)  # newer = higher
+popularity_score = log(join_count + 1)                # more joins = higher
+
+Defaults: W_DIST=1.0, W_FRESH=2.0, W_POP=0.5 (configurable via env)
+```
+
+**Visibility rule:** Unverified intents (0 joins) only visible within 200m.
+
+---
+
+## 11. Deployment Checklist
+
+### Required Before Deploy
+- [x] Set `JWT_SECRET`, `DEVICE_TOKEN_SECRET`, `POSTGRES_PASSWORD`, `REDIS_PASSWORD` in `.env`
+- [x] Set `ALLOWED_ORIGINS` to production domain
+- [x] Set `NOWHERE_DOMAIN` for Caddy auto-TLS
+- [x] Set `DEBUG=false`
+- [x] Docker build passes
+- [x] Health checks configured
+- [x] Non-root containers
+- [x] Network isolation (frontend/backend)
+- [x] Resource limits on all services
+- [x] Redis persistence enabled (AOF)
+
+### Recommended Post-Deploy
+- [ ] Rotate secrets (they exist on dev machine)
+- [ ] Set up monitoring (Prometheus/Grafana)
+- [ ] Set up log aggregation
+- [ ] Run `npm audit` on frontend deps
+- [ ] Penetration test
+- [ ] Load test (target: 1000 concurrent connections)
+
+---
+
+## 12. PWA Deployment Gap Analysis
+
+See `PROBLEM_AND_SOLUTION.md` for the full PWA checklist and current status.
